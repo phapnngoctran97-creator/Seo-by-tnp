@@ -1,9 +1,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 const getAiClient = () => {
-  const apiKey = process.env.API_KEY;
+  // Ưu tiên lấy key từ localStorage do người dùng nhập
+  const localKey = typeof window !== 'undefined' ? localStorage.getItem('gemini_api_key') : null;
+  // Nếu không có local key, dùng key từ biến môi trường (nếu có)
+  const apiKey = localKey || process.env.API_KEY;
+
   if (!apiKey) {
-    throw new Error("API Key chưa được cấu hình. Vui lòng kiểm tra cài đặt.");
+    throw new Error("API Key chưa được cấu hình. Vui lòng nhấn vào nút 'Cài đặt API' ở thanh menu bên trái để nhập Key.");
   }
   return new GoogleGenAI({ apiKey });
 };
