@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Image as ImageIcon, Upload, Download, RefreshCw, Clipboard, Play, Trash2, CheckCircle, FileText } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Image as ImageIcon, Upload, Download, RefreshCw, Clipboard, Play, Trash2, CheckCircle, FileText, ZoomIn } from 'lucide-react';
 
 interface CompressedFile {
   id: string;
@@ -16,9 +16,46 @@ const ImageCompressor: React.FC = () => {
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [quality, setQuality] = useState(80);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
   
   // Helper to get active file for preview
   const activeFile = files.find(f => f.id === selectedFileId) || files[0];
+
+  // Debounce helper ref
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Core compression logic (reusable)
+  const compressSingleFile = async (fileItem: CompressedFile, q: number): Promise<CompressedFile> => {
+    return new Promise<CompressedFile>((resolve) => {
+        const img = new Image();
+        img.src = fileItem.originalPreview;
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            
+            if (ctx) {
+                ctx.drawImage(img, 0, 0);
+                // Compress
+                const newBase64 = canvas.toDataURL('image/jpeg', q / 100);
+                
+                // Calculate size approx
+                const head = 'data:image/jpeg;base64,';
+                const size = Math.round((newBase64.length - head.length) * 3 / 4);
+
+                resolve({
+                    ...fileItem,
+                    compressedUrl: newBase64,
+                    compressedSize: size,
+                    status: 'done' // Mark as done for preview purposes
+                });
+            } else {
+                resolve(fileItem);
+            }
+        };
+    });
+  };
 
   const processFiles = (incomingFiles: FileList | File[]) => {
     const currentCount = files.length;
@@ -35,7 +72,7 @@ const ImageCompressor: React.FC = () => {
       file,
       originalPreview: URL.createObjectURL(file),
       originalSize: file.size,
-      compressedUrl: null,
+      compressedUrl: null, // Will be filled by initial preview effect
       compressedSize: null,
       status: 'pending'
     }));
@@ -69,42 +106,43 @@ const ImageCompressor: React.FC = () => {
     return () => window.removeEventListener('paste', handlePaste);
   }, [files.length]);
 
+  // Live Preview Effect: Update ONLY the active file when quality changes
+  useEffect(() => {
+    if (!activeFile) return;
+
+    // Debounce to avoid freezing UI while sliding
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+    setPreviewLoading(true);
+    timeoutRef.current = setTimeout(async () => {
+        const updated = await compressSingleFile(activeFile, quality);
+        setFiles(prev => prev.map(f => f.id === activeFile.id ? updated : f));
+        setPreviewLoading(false);
+    }, 300); // 300ms delay
+
+    return () => {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [quality, activeFile?.id]); // Note: We depend on ID, not full object to avoid loops, but need logic to handle new files
+
+  // Separate effect to trigger initial compression for new files if they are selected
+  // This ensures when you select a new file, it gets a "preview" compression immediately
+  useEffect(() => {
+     if(activeFile && activeFile.status === 'pending' && !activeFile.compressedUrl) {
+         compressSingleFile(activeFile, quality).then(updated => {
+             setFiles(prev => prev.map(f => f.id === activeFile.id ? updated : f));
+         });
+     }
+  }, [selectedFileId]);
+
+
   const compressBatch = async () => {
     if (files.length === 0) return;
     setIsProcessing(true);
 
+    // Compress ALL files with current quality setting
     const processed = await Promise.all(files.map(async (item) => {
-        // Reuse existing result if nothing changed (optimization can be added here), 
-        // but for now we re-compress to ensure quality setting is applied.
-        return new Promise<CompressedFile>((resolve) => {
-            const img = new Image();
-            img.src = item.originalPreview;
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                
-                if (ctx) {
-                    ctx.drawImage(img, 0, 0);
-                    // Compress
-                    const newBase64 = canvas.toDataURL('image/jpeg', quality / 100);
-                    
-                    // Calculate size
-                    const head = 'data:image/jpeg;base64,';
-                    const size = Math.round((newBase64.length - head.length) * 3 / 4);
-
-                    resolve({
-                        ...item,
-                        compressedUrl: newBase64,
-                        compressedSize: size,
-                        status: 'done'
-                    });
-                } else {
-                    resolve(item);
-                }
-            };
-        });
+        return await compressSingleFile(item, quality);
     }));
 
     setFiles(processed);
@@ -178,9 +216,14 @@ const ImageCompressor: React.FC = () => {
                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-pink-600"
                     />
                     <div className="flex justify-between mt-1 text-xs text-gray-400">
-                        <span>Nhỏ hơn</span>
-                        <span>Đẹp hơn</span>
+                        <span>Nhỏ hơn (File nhẹ)</span>
+                        <span>Đẹp hơn (File nặng)</span>
                     </div>
+                </div>
+
+                <div className="bg-blue-50 p-3 rounded-lg text-xs text-blue-700 mb-4 flex gap-2">
+                    <ZoomIn size={16} className="flex-shrink-0 mt-0.5" />
+                    <span>Kéo thanh trượt để xem trước dung lượng ước tính bên phải.</span>
                 </div>
 
                 <button 
@@ -193,7 +236,7 @@ const ImageCompressor: React.FC = () => {
                     }`}
                 >
                     {isProcessing ? <RefreshCw className="animate-spin w-5 h-5" /> : <Play className="w-5 h-5 fill-current" />}
-                    {isProcessing ? 'Đang nén...' : 'Bắt Đầu Nén'}
+                    {isProcessing ? 'Đang nén tất cả...' : 'Áp Dụng Cho Tất Cả'}
                 </button>
             </div>
         </div>
@@ -212,17 +255,37 @@ const ImageCompressor: React.FC = () => {
                         <img 
                             src={activeFile?.compressedUrl || activeFile?.originalPreview} 
                             alt="Preview" 
-                            className="max-w-full max-h-[450px] object-contain shadow-lg rounded"
+                            className={`max-w-full max-h-[450px] object-contain shadow-lg rounded transition-opacity ${previewLoading ? 'opacity-50' : 'opacity-100'}`}
                         />
-                        {activeFile?.status === 'done' && (
-                             <div className="mt-4 bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-sm text-sm font-medium flex gap-4">
-                                <span className="text-gray-500 line-through">{formatSize(activeFile.originalSize)}</span>
-                                <span className="text-pink-600">➜ {formatSize(activeFile.compressedSize || 0)}</span>
-                                <span className="bg-pink-100 text-pink-700 px-2 rounded text-xs flex items-center">
-                                    -{getSavings(activeFile.originalSize, activeFile.compressedSize)}%
+                        
+                        {/* Comparison Card Overlay */}
+                        <div className="mt-4 bg-white/95 backdrop-blur px-6 py-3 rounded-2xl shadow-xl border border-white/50 text-sm font-medium flex gap-8 items-center animate-in slide-in-from-bottom-4">
+                            <div className="flex flex-col items-center">
+                                <span className="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Gốc</span>
+                                <span className="text-gray-800 text-lg font-bold">{formatSize(activeFile.originalSize)}</span>
+                            </div>
+                            
+                            <div className="w-px h-8 bg-gray-200"></div>
+
+                            <div className="flex flex-col items-center">
+                                <span className="text-[10px] uppercase text-pink-500 font-bold tracking-wider flex items-center gap-1">
+                                    {previewLoading ? 'Đang tính...' : 'Sau khi nén'}
                                 </span>
-                             </div>
-                        )}
+                                <div className="flex items-center gap-2">
+                                    <span className={`text-lg font-bold ${activeFile.compressedSize && activeFile.compressedSize < activeFile.originalSize ? 'text-green-600' : 'text-gray-800'}`}>
+                                        {activeFile.compressedSize ? formatSize(activeFile.compressedSize) : '...'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col items-center justify-center">
+                                 {activeFile.compressedSize && (
+                                     <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">
+                                         Giảm {getSavings(activeFile.originalSize, activeFile.compressedSize)}%
+                                     </span>
+                                 )}
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
@@ -231,11 +294,9 @@ const ImageCompressor: React.FC = () => {
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-72">
                  <div className="p-3 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
                     <h3 className="font-semibold text-gray-700 text-sm">Danh sách file ({files.length})</h3>
-                    {files.some(f => f.status === 'done') && (
-                        <span className="text-xs text-green-600 flex items-center gap-1">
-                            <CheckCircle size={12} /> Hoàn tất
-                        </span>
-                    )}
+                    <div className="text-xs text-gray-500">
+                        Bấm vào ảnh để xem chi tiết
+                    </div>
                  </div>
                  <div className="overflow-y-auto p-2 space-y-2 flex-1">
                     {files.map((file) => (
@@ -246,31 +307,37 @@ const ImageCompressor: React.FC = () => {
                               selectedFileId === file.id ? 'bg-pink-50 border-pink-300 ring-1 ring-pink-200' : 'bg-white border-gray-100 hover:border-gray-300'
                            }`}
                         >
-                           <img src={file.originalPreview} className="w-10 h-10 object-cover rounded bg-gray-100" alt="thumb" />
+                           <div className="relative w-12 h-12 flex-shrink-0">
+                               <img src={file.originalPreview} className="w-full h-full object-cover rounded bg-gray-100" alt="thumb" />
+                               {selectedFileId === file.id && (
+                                   <div className="absolute inset-0 bg-pink-500/20 rounded border-2 border-pink-500"></div>
+                               )}
+                           </div>
                            
                            <div className="flex-1 min-w-0">
                                <p className="text-sm font-medium text-gray-800 truncate">{file.file.name}</p>
                                <div className="flex items-center gap-2 mt-0.5">
-                                   <span className="text-xs text-gray-500">{formatSize(file.originalSize)}</span>
-                                   {file.status === 'done' && (
-                                       <>
-                                         <span className="text-gray-300 text-xs">➜</span>
-                                         <span className="text-xs font-bold text-green-600">{formatSize(file.compressedSize || 0)}</span>
-                                         <span className="text-[10px] bg-green-100 text-green-700 px-1.5 rounded">
+                                   <span className="text-xs text-gray-400 line-through">{formatSize(file.originalSize)}</span>
+                                   <span className="text-xs text-gray-400">➜</span>
+                                   <span className="text-xs font-bold text-gray-700">
+                                       {file.compressedSize ? formatSize(file.compressedSize) : '...'}
+                                   </span>
+                                   {file.compressedSize && (
+                                       <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 rounded">
                                             -{getSavings(file.originalSize, file.compressedSize)}%
-                                         </span>
-                                       </>
+                                       </span>
                                    )}
                                </div>
                            </div>
 
-                           {file.status === 'done' && file.compressedUrl ? (
+                           {/* Direct Download Button for each file if needed, or just delete */}
+                           {file.compressedUrl ? (
                               <a 
                                  href={file.compressedUrl} 
                                  download={`compressed_${file.file.name}`}
                                  onClick={(e) => e.stopPropagation()}
                                  className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
-                                 title="Tải xuống"
+                                 title="Tải ảnh này"
                               >
                                  <Download size={16} />
                               </a>
