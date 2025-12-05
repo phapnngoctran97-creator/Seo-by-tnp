@@ -6,8 +6,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 interface ChannelData {
   id: string;
   name: string;
-  spend: number;
-  results: number; // Conversions, Leads, Purchases
+  spend: number | '';
+  results: number | ''; // Conversions, Leads, Purchases
   cpr: number; // Cost Per Result
 }
 
@@ -24,7 +24,9 @@ const CostPerResult: React.FC = () => {
         const updated = { ...c, [field]: value };
         // Recalculate CPR
         if (field === 'spend' || field === 'results') {
-           updated.cpr = updated.results > 0 ? updated.spend / updated.results : 0;
+           const s = Number(updated.spend) || 0;
+           const r = Number(updated.results) || 0;
+           updated.cpr = r > 0 ? s / r : 0;
         }
         return updated;
       }
@@ -33,7 +35,7 @@ const CostPerResult: React.FC = () => {
   };
 
   const addChannel = () => {
-    setChannels([...channels, { id: Math.random().toString(), name: 'New Channel', spend: 0, results: 0, cpr: 0 }]);
+    setChannels([...channels, { id: Math.random().toString(), name: 'New Channel', spend: '', results: '', cpr: 0 }]);
   };
 
   const removeChannel = (id: string) => {
@@ -41,12 +43,15 @@ const CostPerResult: React.FC = () => {
   };
 
   // Stats
-  const totalSpend = channels.reduce((sum, c) => sum + c.spend, 0);
-  const totalResults = channels.reduce((sum, c) => sum + c.results, 0);
+  const totalSpend = channels.reduce((sum, c) => sum + (Number(c.spend)||0), 0);
+  const totalResults = channels.reduce((sum, c) => sum + (Number(c.results)||0), 0);
   const avgCpr = totalResults > 0 ? totalSpend / totalResults : 0;
   
   // Find Best/Worst
-  const sortedByCpr = [...channels].filter(c => c.results > 0).sort((a, b) => a.cpr - b.cpr);
+  const sortedByCpr = [...channels]
+    .filter(c => (Number(c.results)||0) > 0)
+    .sort((a, b) => a.cpr - b.cpr);
+  
   const bestChannel = sortedByCpr[0];
   const worstChannel = sortedByCpr[sortedByCpr.length - 1];
 
@@ -93,16 +98,24 @@ const CostPerResult: React.FC = () => {
                                 <td className="px-2 py-2">
                                     <input 
                                        type="text"
-                                       value={c.spend.toLocaleString('en-US')}
-                                       onChange={(e) => updateChannel(c.id, 'spend', parseFloat(e.target.value.replace(/,/g, '')) || 0)}
+                                       value={c.spend === '' ? '' : c.spend.toLocaleString('en-US')}
+                                       onChange={(e) => {
+                                          const raw = e.target.value.replace(/,/g, '');
+                                          const val = raw === '' ? '' : parseFloat(raw);
+                                          updateChannel(c.id, 'spend', val);
+                                       }}
                                        className="w-24 p-1 border rounded text-right focus:ring-1 focus:ring-cyan-500 outline-none"
                                     />
                                 </td>
                                 <td className="px-2 py-2">
                                     <input 
                                        type="text"
-                                       value={c.results.toLocaleString('en-US')}
-                                       onChange={(e) => updateChannel(c.id, 'results', parseFloat(e.target.value.replace(/,/g, '')) || 0)}
+                                       value={c.results === '' ? '' : c.results.toLocaleString('en-US')}
+                                       onChange={(e) => {
+                                          const raw = e.target.value.replace(/,/g, '');
+                                          const val = raw === '' ? '' : parseFloat(raw);
+                                          updateChannel(c.id, 'results', val);
+                                       }}
                                        className="w-20 p-1 border rounded text-right focus:ring-1 focus:ring-cyan-500 outline-none"
                                     />
                                 </td>

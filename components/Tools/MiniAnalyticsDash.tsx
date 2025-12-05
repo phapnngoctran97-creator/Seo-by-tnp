@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Activity, Target, TrendingUp, TrendingDown, Clipboard, Check, RefreshCw, MessageCircle, Users, MousePointer2, Eye } from 'lucide-react';
+import { Activity, Target, Clipboard, Check, RefreshCw, MessageCircle, Users, MousePointer2, Eye } from 'lucide-react';
 
 const MiniAnalyticsDash: React.FC = () => {
   // Inputs
