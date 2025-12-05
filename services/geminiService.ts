@@ -364,3 +364,48 @@ export const generateLandingLayout = async (
   
   return code || "Lỗi tạo layout.";
 };
+
+export const generateMarketingPlanSlides = async (
+  brandName: string,
+  period: string,
+  history: string,
+  goals: string
+): Promise<string> => {
+  const ai = getAiClient();
+  const prompt = `
+    Bạn là một Giám đốc Marketing (CMO) chuyên nghiệp. Hãy tạo một bài thuyết trình (Slide Deck) kế hoạch Marketing bằng HTML/CSS/JS (Single file).
+    
+    Thông tin đầu vào:
+    - Thương hiệu: "${brandName}"
+    - Giai đoạn lập kế hoạch: "${period}"
+    - Lịch sử/Số liệu quá khứ: "${history}"
+    - Mục tiêu & Đề xuất: "${goals}"
+
+    Yêu cầu kỹ thuật:
+    1. Output là mã HTML5 đầy đủ, tích hợp Tailwind CSS qua CDN.
+    2. Giao diện giống PowerPoint/Google Slides: Tỷ lệ 16:9, căn giữa màn hình.
+    3. Có nút "Trước" (Prev) và "Sau" (Next) để chuyển slide. (Dùng JavaScript đơn giản nhúng trong thẻ <script>).
+    4. Cấu trúc các Slide:
+       - Slide 1: Trang bìa (Tên brand, Tên kế hoạch, Tên người trình bày).
+       - Slide 2: Tổng quan (Executive Summary).
+       - Slide 3: Review Lịch sử & Số liệu (Dựa trên input).
+       - Slide 4: Phân tích SWOT (Tự đề xuất dựa trên ngữ cảnh).
+       - Slide 5: Mục tiêu chiến lược (KPIs).
+       - Slide 6: Chiến lược đề xuất (Key Initiatives).
+       - Slide 7: Lộ trình triển khai (Timeline).
+       - Slide 8: Dự trù ngân sách.
+       - Slide 9: Kết thúc (Q&A).
+    5. Thiết kế: Corporate, chuyên nghiệp, sử dụng màu chủ đạo là Xanh Navy (Blue-900) và Vàng (Yellow-500). Font Inter.
+
+    Output format: Raw HTML code only.
+  `;
+  
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt
+  });
+  
+  let code = response.text || "";
+  code = code.replace(/```html/g, "").replace(/```/g, "").trim();
+  return code || "Lỗi tạo slide.";
+};

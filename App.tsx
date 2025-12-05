@@ -24,6 +24,7 @@ import AdsContentGen from './components/Tools/AdsContentGen';
 import LandingLayoutGen from './components/Tools/LandingLayoutGen';
 import AdsCalculator from './components/Tools/AdsCalculator';
 import BudgetPlanner from './components/Tools/BudgetPlanner';
+import MarketingPlanSlides from './components/Tools/MarketingPlanSlides';
 
 import Dashboard from './components/Dashboard';
 import ApiKeyModal from './components/ApiKeyModal';
@@ -64,6 +65,7 @@ const App: React.FC = () => {
       case ToolType.LANDING_LAYOUT: return <LandingLayoutGen />;
       case ToolType.ADS_CALCULATOR: return <AdsCalculator />;
       case ToolType.BUDGET_PLANNER: return <BudgetPlanner />;
+      case ToolType.PLAN_SLIDES: return <MarketingPlanSlides />;
       
       default: return <Dashboard onNavigate={setActiveTool} />;
     }

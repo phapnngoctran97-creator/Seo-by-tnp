@@ -6,7 +6,7 @@ import {
   FileText, Image as ImageIcon, BookOpen, X,
   Crop, Eraser, Move, Palette, Aperture, ImagePlus, List, Type,
   Clock, Timer, Users, Globe, Activity, ClipboardCheck,
-  Megaphone, Target, Calculator, Layout, PieChart
+  Megaphone, Target, Calculator, Layout, PieChart, Presentation
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -96,8 +96,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     { id: ToolType.ADS_STRUCTURE, title: 'Tạo Cấu Trúc Camp', desc: 'AI tạo sơ đồ chiến dịch.', icon: Network, color: 'text-blue-600', bg: 'bg-blue-50' },
     { id: ToolType.ADS_CONTENT, title: 'Viết Content Ads', desc: 'Headline & Copywriting.', icon: Megaphone, color: 'text-orange-600', bg: 'bg-orange-50' },
     { id: ToolType.LANDING_LAYOUT, title: 'Layout Landing Page', desc: 'Gợi ý cấu trúc sales page.', icon: Layout, color: 'text-purple-600', bg: 'bg-purple-50' },
+    { id: ToolType.PLAN_SLIDES, title: 'Tạo Slide Plan', desc: 'Làm Slide kế hoạch HTML.', icon: Presentation, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { id: ToolType.ADS_CALCULATOR, title: 'Máy Tính Ads', desc: 'Tính ROAS, CPA, CAC.', icon: Calculator, color: 'text-teal-600', bg: 'bg-teal-50' },
-    { id: ToolType.BUDGET_PLANNER, title: 'Kế Hoạch Ngân Sách', desc: 'Dự tính chi tiêu.', icon: PieChart, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+    { id: ToolType.BUDGET_PLANNER, title: 'Kế Hoạch Ngân Sách', desc: 'Dự tính chi tiêu.', icon: PieChart, color: 'text-rose-600', bg: 'bg-rose-50' },
   ];
 
   const seoTools: ToolItem[] = [
