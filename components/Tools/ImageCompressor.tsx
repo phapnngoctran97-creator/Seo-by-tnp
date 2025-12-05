@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Image as ImageIcon, Upload, Download, RefreshCw } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Image as ImageIcon, Upload, Download, RefreshCw, Clipboard } from 'lucide-react';
 
 const ImageCompressor: React.FC = () => {
   const [originalImage, setOriginalImage] = useState<string | null>(null);
@@ -11,23 +11,47 @@ const ImageCompressor: React.FC = () => {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const processFile = (file: File) => {
+    if (!file.type.match(/image.*/)) {
+      alert("Vui lòng chọn file ảnh (JPG, PNG, WEBP)");
+      return;
+    }
+    setFileName(file.name || "image.png");
+    setOriginalSize(file.size);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setOriginalImage(event.target?.result as string);
+      compressImage(event.target?.result as string, quality);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.match(/image.*/)) {
-        alert("Vui lòng chọn file ảnh (JPG, PNG, WEBP)");
-        return;
-      }
-      setFileName(file.name);
-      setOriginalSize(file.size);
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setOriginalImage(event.target?.result as string);
-        compressImage(event.target?.result as string, quality);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (file) processFile(file);
   };
+
+  // Paste handler
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            processFile(file);
+            e.preventDefault();
+          }
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [quality]); // Re-bind if quality changes (though processFile uses current state, closure might trap old quality if not careful, but here compressImage is called with current quality val passed in arg is better, but state is safer)
 
   const compressImage = (base64Str: string, q: number) => {
     const img = new Image();
@@ -70,7 +94,7 @@ const ImageCompressor: React.FC = () => {
     if (compressedImage) {
       const link = document.createElement('a');
       link.href = compressedImage;
-      link.download = `compressed_${fileName.split('.')[0]}.jpg`;
+      link.download = `compressed_${fileName.split('.')[0] || 'image'}.jpg`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -95,8 +119,11 @@ const ImageCompressor: React.FC = () => {
             <div className="w-16 h-16 bg-pink-50 text-pink-500 rounded-full flex items-center justify-center mb-4">
                <Upload className="w-8 h-8" />
             </div>
-            <p className="text-lg font-medium text-gray-700">Kéo thả hoặc Click để tải ảnh lên</p>
+            <p className="text-lg font-medium text-gray-700">Kéo thả, Click hoặc Dán (Ctrl+V) ảnh</p>
             <p className="text-sm text-gray-400 mt-1">Hỗ trợ JPG, PNG, WEBP</p>
+            <div className="mt-4 flex items-center gap-2 text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+               <Clipboard size={12} /> Hỗ trợ dán trực tiếp
+            </div>
             <input 
               type="file" 
               ref={fileInputRef} 
@@ -132,7 +159,7 @@ const ImageCompressor: React.FC = () => {
                     <h3 className="font-semibold text-green-600 mb-2">
                         Đã nén ({formatSize(compressedSize)}) 
                         <span className="text-xs ml-2 bg-green-100 px-2 py-0.5 rounded text-green-700">
-                           -{Math.round(((originalSize - compressedSize) / originalSize) * 100)}%
+                           -{originalSize > 0 ? Math.round(((originalSize - compressedSize) / originalSize) * 100) : 0}%
                         </span>
                     </h3>
                     {compressedImage && (

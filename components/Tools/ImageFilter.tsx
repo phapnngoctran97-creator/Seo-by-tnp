@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Aperture, Upload, Download, Droplet } from 'lucide-react';
+import { Aperture, Upload, Download, Clipboard } from 'lucide-react';
 
 const ImageFilter: React.FC = () => {
   const [image, setImage] = useState<string | null>(null);
@@ -15,16 +15,40 @@ const ImageFilter: React.FC = () => {
       { id: 'blur', label: 'Làm mờ', css: 'blur(2px)' },
   ];
 
+  const processFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+        setImage(evt.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      if(file) {
-          const reader = new FileReader();
-          reader.onload = (evt) => {
-              setImage(evt.target?.result as string);
-          };
-          reader.readAsDataURL(file);
-      }
+      if(file) processFile(file);
   };
+
+  // Paste handler
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            processFile(file);
+            e.preventDefault();
+          }
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, []);
 
   useEffect(() => {
       if(image && canvasRef.current) {
@@ -63,11 +87,12 @@ const ImageFilter: React.FC = () => {
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
          {!image ? (
-             <div className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center">
+             <div className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center group hover:bg-fuchsia-50 transition-colors">
                  <input type="file" id="filter-upload" className="hidden" accept="image/*" onChange={handleFileChange} />
                  <label htmlFor="filter-upload" className="cursor-pointer flex flex-col items-center">
-                     <Upload className="w-12 h-12 text-fuchsia-300 mb-3" />
-                     <span className="text-gray-600 font-medium">Tải ảnh lên</span>
+                     <Upload className="w-12 h-12 text-fuchsia-300 mb-3 group-hover:scale-110 transition-transform" />
+                     <span className="text-gray-600 font-medium">Tải ảnh lên hoặc Ctrl+V</span>
+                     <span className="text-xs text-fuchsia-400 mt-2 flex items-center gap-1"><Clipboard size={10} /> Dán ảnh trực tiếp</span>
                  </label>
              </div>
          ) : (

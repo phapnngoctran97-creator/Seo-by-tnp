@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Eraser, Upload, Download, MousePointer2, Eye, LayoutTemplate, Layers } from 'lucide-react';
+import { Eraser, Upload, Download, MousePointer2, Eye, LayoutTemplate, Layers, Clipboard } from 'lucide-react';
 
 const BgRemover: React.FC = () => {
   const [image, setImage] = useState<string | null>(null);
@@ -17,9 +17,7 @@ const BgRemover: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+  const processFile = (file: File) => {
       const reader = new FileReader();
       reader.onload = (event) => {
         setImage(event.target?.result as string);
@@ -27,8 +25,34 @@ const BgRemover: React.FC = () => {
         setCompareMode(false);
       };
       reader.readAsDataURL(file);
-    }
   };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  // Paste handler
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            processFile(file);
+            e.preventDefault();
+          }
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, []);
 
   const removeColor = (clickedColor?: {r: number, g: number, b: number}) => {
     const img = new Image();
@@ -70,11 +94,6 @@ const BgRemover: React.FC = () => {
   };
 
   const handleCanvasClick = (e: React.MouseEvent) => {
-      // Only allow picking color if not in full comparison mode (or ensure we pick from original)
-      // Here we assume clicking always picks from original concept, 
-      // but physically we might be clicking the canvas which is hidden in some views.
-      // We'll use the event on the container or the visible image.
-      
       const canvas = canvasRef.current;
       if (!canvas || !image) return;
 
@@ -84,15 +103,7 @@ const BgRemover: React.FC = () => {
       const x = (e.clientX - rect.left) * scaleX;
       const y = (e.clientY - rect.top) * scaleY;
       
-      // Draw original momentarily to pick color to ensure we pick from source
       const ctx = canvas.getContext('2d');
-      const img = new Image();
-      img.src = image;
-      // Note: This is synchronous usually if cached, but strictly we should ensure it's loaded.
-      // For simplicity in this tool, we assume 'image' state is valid source.
-      
-      // Actually simpler: Create a temp canvas or just use the pixel data if we keep original data.
-      // Let's just pick from what is rendered if we haven't processed yet, or reload original.
       
       const p = ctx?.getImageData(x, y, 1, 1).data;
       if(p) {
@@ -140,14 +151,14 @@ const BgRemover: React.FC = () => {
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 min-h-[600px]">
           {!image ? (
-               <div className="border-2 border-dashed border-gray-300 rounded-xl p-20 text-center hover:bg-rose-50 transition-colors cursor-pointer">
+               <div className="border-2 border-dashed border-gray-300 rounded-xl p-20 text-center hover:bg-rose-50 transition-colors cursor-pointer group">
                   <input type="file" id="bg-upload" className="hidden" accept="image/*" onChange={handleFileChange} />
                   <label htmlFor="bg-upload" className="cursor-pointer flex flex-col items-center w-full h-full">
-                      <div className="w-20 h-20 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mb-4">
+                      <div className="w-20 h-20 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                         <Upload className="w-10 h-10" />
                       </div>
                       <span className="text-xl font-bold text-gray-700">Tải ảnh lên (JPG/PNG)</span>
-                      <span className="text-sm text-gray-500 mt-2">Khuyên dùng ảnh có nền màu đồng nhất</span>
+                      <span className="text-sm text-gray-500 mt-2 flex items-center gap-1"><Clipboard size={12} /> Hoặc nhấn Ctrl+V để dán ảnh</span>
                   </label>
                </div>
           ) : (

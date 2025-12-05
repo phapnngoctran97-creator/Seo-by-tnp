@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Crop, Upload, Download, RotateCw, ZoomIn, Image as ImageIcon } from 'lucide-react';
+import { Crop, Upload, Download, RotateCw, ZoomIn, Image as ImageIcon, Clipboard } from 'lucide-react';
 
 const AvatarMaker: React.FC = () => {
   const [image, setImage] = useState<HTMLImageElement | null>(null);
@@ -14,23 +14,47 @@ const AvatarMaker: React.FC = () => {
 
   const CANVAS_SIZE = 300;
 
+  const processFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+          setImage(img);
+          setScale(1);
+          setRotation(0);
+          setPosition({ x: 0, y: 0 });
+      };
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target?.result as string;
-        img.onload = () => {
-            setImage(img);
-            setScale(1);
-            setRotation(0);
-            setPosition({ x: 0, y: 0 });
-        };
-      };
-      reader.readAsDataURL(file);
-    }
+    if (file) processFile(file);
   };
+
+  // Paste handler
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            processFile(file);
+            e.preventDefault();
+          }
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, []);
 
   useEffect(() => {
     draw();
@@ -116,11 +140,12 @@ const AvatarMaker: React.FC = () => {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center">
             {!image ? (
                 <div 
-                    className="w-[300px] h-[300px] border-2 border-dashed border-gray-300 rounded-full flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors bg-gray-50"
+                    className="w-[300px] h-[300px] border-2 border-dashed border-gray-300 rounded-full flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors bg-gray-50 text-center px-4"
                     onClick={() => fileInputRef.current?.click()}
                 >
                     <Upload className="w-10 h-10 text-gray-400 mb-2" />
-                    <span className="text-gray-500 font-medium">Tải ảnh lên</span>
+                    <span className="text-gray-500 font-medium">Tải ảnh lên<br/>hoặc Dán (Ctrl+V)</span>
+                    <div className="mt-2 text-xs text-violet-500 flex items-center justify-center gap-1"><Clipboard size={10} /> Paste supported</div>
                 </div>
             ) : (
                 <div className="relative">
