@@ -135,7 +135,7 @@ const App: React.FC = () => {
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* Mobile Header */}
         <header className="bg-white border-b border-gray-200 p-4 flex items-center justify-between md:hidden">
-          <span className="font-bold text-gray-800">SEO Master</span>
+          <span className="font-bold text-gray-800">SEO Master By TNP - Digital Marketing</span>
           <div className="flex items-center gap-2">
             <button
                onClick={() => setShowApiModal(true)}

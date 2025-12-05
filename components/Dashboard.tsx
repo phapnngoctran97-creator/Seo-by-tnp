@@ -272,10 +272,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
       <div className="mb-8 text-center">
         <h1 className="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">
-          Bộ Công Cụ <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-cyan-600">SEO Master</span>
+          Bộ Công Cụ <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-cyan-600">SEO Master making by TNP - Digital Marketing</span>
         </h1>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-6">
-          Tất cả công cụ bạn cần để tối ưu hóa Website, chỉnh sửa ảnh và xử lý nội dung.
+          Tôi bằng tất cả tâm huyết và kinh nghiệm của mình để xây dựng bộ công cụ này nhằm hỗ trợ các bạn trong việc tối ưu hóa chiến dịch Marketing và SEO một cách hiệu quả nhất.
+          Nếu được hãy Donate cho tôi 100k để uống trà sữa nhé! Cảm ơn các bạn rất nhiều!
         </p>
 
         {/* Search Bar */}
