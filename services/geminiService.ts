@@ -91,3 +91,32 @@ export const analyzeSpeedOptimization = async (
     throw error;
   }
 };
+
+export const checkPlagiarismAndStyle = async (
+  text: string
+): Promise<string> => {
+  const ai = getAiClient();
+
+  const prompt = `
+    Hãy phân tích đoạn văn bản sau đây về mặt "Tính nguyên bản" và "Văn phong".
+    Văn bản: "${text}"
+    
+    Nhiệm vụ:
+    1. Đánh giá xem văn bản này có dấu hiệu giống văn bản do AI tạo ra hay văn bản sao chép thông thường không (dựa trên cấu trúc câu, từ ngữ lặp lại).
+    2. Đề xuất các thay đổi để làm cho văn bản tự nhiên hơn, giống người viết hơn.
+    3. Tìm ra 3 câu có thể viết lại để hay hơn.
+    
+    Trình bày dưới dạng Markdown ngắn gọn. Lưu ý: Bạn không thể tìm kiếm Google thời gian thực, nên hãy phân tích dựa trên kiến thức ngôn ngữ học và mô hình của bạn.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+    return response.text || "Không thể phân tích lúc này.";
+  } catch (error) {
+    console.error("Gemini Plagiarism Check Error:", error);
+    throw error;
+  }
+};

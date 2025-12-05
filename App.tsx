@@ -5,6 +5,12 @@ import KeywordChecker from './components/Tools/KeywordChecker';
 import SpeedAdvisor from './components/Tools/SpeedAdvisor';
 import SitemapGenerator from './components/Tools/SitemapGenerator';
 import QrGenerator from './components/Tools/QrGenerator';
+// New Tools
+import WordCounter from './components/Tools/WordCounter';
+import ImageCompressor from './components/Tools/ImageCompressor';
+import PlagiarismChecker from './components/Tools/PlagiarismChecker';
+import PdfTools from './components/Tools/PdfTools';
+
 import Dashboard from './components/Dashboard';
 import ApiKeyModal from './components/ApiKeyModal';
 import { ToolType } from './types';
@@ -17,11 +23,19 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     switch (activeTool) {
+      // SEO Tools
       case ToolType.META_GEN: return <MetaGenerator />;
       case ToolType.KEYWORD_CHECK: return <KeywordChecker />;
       case ToolType.SPEED_ADVISOR: return <SpeedAdvisor />;
       case ToolType.SITEMAP_GEN: return <SitemapGenerator />;
       case ToolType.QR_GEN: return <QrGenerator />;
+      
+      // Text Tools
+      case ToolType.WORD_COUNTER: return <WordCounter />;
+      case ToolType.IMG_COMPRESS: return <ImageCompressor />;
+      case ToolType.PLAGIARISM_CHECK: return <PlagiarismChecker />;
+      case ToolType.PDF_TOOLS: return <PdfTools />;
+      
       default: return <Dashboard onNavigate={setActiveTool} />;
     }
   };
@@ -49,7 +63,7 @@ const App: React.FC = () => {
         isOpen={isSidebarOpen}
         onOpenSettings={() => {
           setShowApiModal(true);
-          setIsSidebarOpen(false); // Close sidebar on mobile when opening modal
+          setIsSidebarOpen(false);
         }}
       />
 
@@ -57,7 +71,7 @@ const App: React.FC = () => {
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* Mobile Header */}
         <header className="bg-white border-b border-gray-200 p-4 flex items-center justify-between md:hidden">
-          <span className="font-bold text-gray-800">SEO Master By TNP</span>
+          <span className="font-bold text-gray-800">SEO Master</span>
           <div className="flex items-center gap-2">
             <button
                onClick={() => setShowApiModal(true)}
