@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { FileType, ArrowRightLeft, Merge, FileText, Download } from 'lucide-react';
+import { FileType, ArrowRightLeft, Merge, FileText } from 'lucide-react';
+// Nếu cần dùng types chung, import từ '../../types'
+// Hiện tại file này không sử dụng ToolType hay interface nào từ types.ts nên không cần import
 
 const PdfTools: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'convert' | 'merge'>('convert');

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { checkPlagiarismAndStyle } from '../../services/geminiService';
-import { BookOpen, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
+import { BookOpen, AlertTriangle, Loader2 } from 'lucide-react';
 
 const PlagiarismChecker: React.FC = () => {
   const [text, setText] = useState('');
