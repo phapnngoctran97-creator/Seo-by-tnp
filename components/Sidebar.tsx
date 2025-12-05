@@ -3,7 +3,7 @@ import { NavGroup, ToolType } from '../types';
 import { 
   LayoutDashboard, Sparkles, Search, Zap, Network, QrCode, 
   Settings, Key, ChevronDown, ChevronRight, FileText, 
-  Image as ImageIcon, BookOpen, Crop, Eraser, Move, Palette, Aperture
+  Image as ImageIcon, BookOpen, Crop, Eraser, Move, Palette, Aperture, List
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -14,13 +14,14 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenSettings }) => {
-  const [expandedGroup, setExpandedGroup] = useState<string | null>('Đồ họa & Hình ảnh');
+  const [expandedGroup, setExpandedGroup] = useState<string | null>('SEO Tools');
 
   const navGroups: NavGroup[] = [
     {
       title: 'SEO Tools',
       items: [
         { id: ToolType.META_GEN, label: 'Tạo Meta SEO', icon: Sparkles, description: 'Tối ưu Description' },
+        { id: ToolType.OUTLINE_GEN, label: 'Tạo Dàn Ý SEO', icon: List, description: 'Outline & Keyword' },
         { id: ToolType.KEYWORD_CHECK, label: 'Check Từ Khóa', icon: Search, description: 'Kiểm tra mật độ' },
         { id: ToolType.SPEED_ADVISOR, label: 'Tối Ưu Tốc Độ', icon: Zap, description: 'Tư vấn Core Vitals' },
         { id: ToolType.SITEMAP_GEN, label: 'Tạo Sitemap', icon: Network, description: 'XML Generator' },

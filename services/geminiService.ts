@@ -120,3 +120,57 @@ export const checkPlagiarismAndStyle = async (
     throw error;
   }
 };
+
+export const generateSeoOutline = async (
+  topic: string,
+  mainKeyword: string,
+  secondaryKeywords: string
+): Promise<string> => {
+  const ai = getAiClient();
+
+  const prompt = `
+    Bạn là một chuyên gia Content SEO với 10 năm kinh nghiệm. Hãy lập một Dàn ý bài viết (Article Outline) chi tiết và tối ưu cho chủ đề sau:
+    
+    - Chủ đề: "${topic}"
+    - Từ khóa chính (Main Keyword): "${mainKeyword}"
+    - Từ khóa phụ/liên quan (Secondary Keywords): "${secondaryKeywords}"
+
+    Hãy trình bày kết quả dưới dạng Markdown chuyên nghiệp theo cấu trúc sau:
+
+    ### 1. Phân Tích & Chiến Lược Từ Khóa
+    - **Intent (Ý định tìm kiếm):** Người dùng muốn gì khi tìm từ khóa này?
+    - **Danh sách từ khóa LSI/Semantic:** Gợi ý thêm 5-10 từ khóa liên quan nên chèn vào bài để tăng độ phủ.
+    - **Độ dài bài viết đề xuất:** ... từ.
+
+    ### 2. Dàn Ý Chi Tiết (Outline)
+    (Sử dụng cấu trúc H1, H2, H3 rõ ràng. Với mỗi thẻ H2/H3, hãy gạch đầu dòng ngắn gọn nội dung cần viết là gì)
+
+    **H1: [Gợi ý 1 tiêu đề hấp dẫn chứa từ khóa chính]**
+    
+    **H2: Giới thiệu (Introduction)**
+    - ...
+
+    **H2: [Luận điểm chính 1]**
+    - ...
+    
+    (Tiếp tục các luận điểm...)
+
+    **H2: Kết luận (Conclusion)**
+    - ...
+    
+    ### 3. Checklist SEO On-page
+    - Gợi ý vị trí đặt từ khóa chính.
+    - Gợi ý về Internal Link nên có.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+    return response.text || "Không thể tạo dàn ý lúc này.";
+  } catch (error) {
+    console.error("Gemini Outline Gen Error:", error);
+    throw error;
+  }
+};

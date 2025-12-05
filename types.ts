@@ -6,6 +6,7 @@ export enum ToolType {
   SPEED_ADVISOR = 'SPEED_ADVISOR',
   SITEMAP_GEN = 'SITEMAP_GEN',
   QR_GEN = 'QR_GEN',
+  OUTLINE_GEN = 'OUTLINE_GEN',
   
   // Text Tools
   WORD_COUNTER = 'WORD_COUNTER',

@@ -5,6 +5,7 @@ import KeywordChecker from './components/Tools/KeywordChecker';
 import SpeedAdvisor from './components/Tools/SpeedAdvisor';
 import SitemapGenerator from './components/Tools/SitemapGenerator';
 import QrGenerator from './components/Tools/QrGenerator';
+import OutlineGenerator from './components/Tools/OutlineGenerator';
 // Text Tools
 import WordCounter from './components/Tools/WordCounter';
 import ImageCompressor from './components/Tools/ImageCompressor';
@@ -34,6 +35,7 @@ const App: React.FC = () => {
       case ToolType.SPEED_ADVISOR: return <SpeedAdvisor />;
       case ToolType.SITEMAP_GEN: return <SitemapGenerator />;
       case ToolType.QR_GEN: return <QrGenerator />;
+      case ToolType.OUTLINE_GEN: return <OutlineGenerator />;
       
       // Text Tools
       case ToolType.WORD_COUNTER: return <WordCounter />;

@@ -3,7 +3,7 @@ import { ToolType } from '../types';
 import { 
   Sparkles, Search, Zap, Network, QrCode, ArrowRight, 
   FileText, Image as ImageIcon, BookOpen, X,
-  Crop, Eraser, Move, Palette, Aperture, LayoutGrid, Type, ImagePlus
+  Crop, Eraser, Move, Palette, Aperture, LayoutGrid, Type, ImagePlus, List
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -33,6 +33,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   const seoTools: ToolItem[] = [
     { id: ToolType.META_GEN, title: 'Tạo Meta Description', desc: 'AI tạo mô tả chuẩn SEO.', icon: Sparkles, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+    { id: ToolType.OUTLINE_GEN, title: 'Tạo Dàn Ý SEO', desc: 'Lập dàn ý & Gợi ý từ khóa.', icon: List, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     { id: ToolType.KEYWORD_CHECK, title: 'Check Trùng Từ Khóa', desc: 'Phân tích mật độ từ khóa.', icon: Search, color: 'text-orange-600', bg: 'bg-orange-50' },
     { id: ToolType.SPEED_ADVISOR, title: 'Tối Ưu Tốc Độ', desc: 'Tư vấn Core Web Vitals.', icon: Zap, color: 'text-yellow-600', bg: 'bg-yellow-50' },
     { id: ToolType.SITEMAP_GEN, title: 'Tạo Sitemap XML', desc: 'Tạo file sitemap cho Google.', icon: Network, color: 'text-cyan-600', bg: 'bg-cyan-50' },
