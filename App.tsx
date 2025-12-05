@@ -18,6 +18,7 @@ import BgRemover from './components/Tools/BgRemover';
 import ImageResizer from './components/Tools/ImageResizer';
 import BannerCreator from './components/Tools/BannerCreator';
 import ImageFilter from './components/Tools/ImageFilter';
+import ImageColorPicker from './components/Tools/ImageColorPicker';
 // Ads Tools
 import AdsStructureGen from './components/Tools/AdsStructureGen';
 import AdsContentGen from './components/Tools/AdsContentGen';
@@ -58,6 +59,7 @@ const App: React.FC = () => {
       case ToolType.IMG_RESIZER: return <ImageResizer />;
       case ToolType.BANNER_GEN: return <BannerCreator />;
       case ToolType.IMG_FILTER: return <ImageFilter />;
+      case ToolType.IMG_COLOR_PICKER: return <ImageColorPicker />;
 
       // Ads Tools
       case ToolType.ADS_STRUCTURE: return <AdsStructureGen />;

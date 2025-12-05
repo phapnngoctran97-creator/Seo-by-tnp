@@ -6,7 +6,7 @@ import {
   FileText, Image as ImageIcon, BookOpen, X,
   Crop, Eraser, Move, Palette, Aperture, ImagePlus, List, Type,
   Clock, Timer, Users, Globe, Activity, ClipboardCheck,
-  Megaphone, Target, Calculator, Layout, PieChart, Presentation
+  Megaphone, Target, Calculator, Layout, PieChart, Presentation, Pipette
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -118,6 +118,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     { id: ToolType.IMG_RESIZER, title: 'Resize & Watermark', desc: 'Đổi kích thước & Đóng dấu.', icon: Move, color: 'text-sky-600', bg: 'bg-sky-50' },
     { id: ToolType.BANNER_GEN, title: 'Tạo Banner', desc: 'FB/YouTube Cover.', icon: Palette, color: 'text-amber-600', bg: 'bg-amber-50' },
     { id: ToolType.IMG_FILTER, title: 'Bộ Lọc Màu', desc: 'Vintage, Trắng đen.', icon: Aperture, color: 'text-fuchsia-600', bg: 'bg-fuchsia-50' },
+    { id: ToolType.IMG_COLOR_PICKER, title: 'Lấy Mã Màu', desc: 'Palette & Eyedropper.', icon: Pipette, color: 'text-fuchsia-600', bg: 'bg-fuchsia-50' },
   ];
 
   const textTools: ToolItem[] = [

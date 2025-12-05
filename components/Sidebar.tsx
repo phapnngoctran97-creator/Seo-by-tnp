@@ -5,7 +5,8 @@ import {
   LayoutDashboard, Sparkles, Search, Zap, Network, QrCode, 
   Settings, Key, ChevronDown, ChevronRight, FileText, 
   Image as ImageIcon, BookOpen, Crop, Eraser, Move, Palette, Aperture, List,
-  ClipboardCheck, Megaphone, Target, Calculator, Layout, PieChart, Presentation
+  ClipboardCheck, Megaphone, Target, Calculator, Layout, PieChart, Presentation,
+  Pipette
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -51,6 +52,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenS
         { id: ToolType.IMG_RESIZER, label: 'Resize Ảnh', icon: Move, description: 'Đổi kích thước' },
         { id: ToolType.BANNER_GEN, label: 'Tạo Banner', icon: Palette, description: 'FB/Youtube Cover' },
         { id: ToolType.IMG_FILTER, label: 'Bộ Lọc Màu', icon: Aperture, description: 'Vintage/B&W' },
+        { id: ToolType.IMG_COLOR_PICKER, label: 'Lấy Mã Màu', icon: Pipette, description: 'Phân tích màu ảnh' },
       ]
     },
     {

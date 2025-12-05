@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { generateMarketingPlanSlides } from '../../services/geminiService';
-import { Presentation, Download, Play, Check, Copy, Loader2, Monitor } from 'lucide-react';
+import { Presentation, Download, Play, Check, Copy, Loader2, Monitor, Upload, FileBarChart, X } from 'lucide-react';
 
 const MarketingPlanSlides: React.FC = () => {
   const [brandName, setBrandName] = useState('');
@@ -11,13 +11,37 @@ const MarketingPlanSlides: React.FC = () => {
   const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'preview' | 'code'>('preview');
+  
+  // File Upload State
+  const [uploadedFile, setUploadedFile] = useState<{ name: string; type: string; data: string } | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const processFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const base64String = evt.target?.result as string;
+      // Remove data URL prefix for API
+      const base64Data = base64String.split(',')[1];
+      setUploadedFile({
+        name: file.name,
+        type: file.type,
+        data: base64Data
+      });
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleGenerate = async () => {
     if (!brandName || !goals) return;
     setLoading(true);
     setViewMode('preview');
     try {
-      const data = await generateMarketingPlanSlides(brandName, period, history, goals);
+      const fileData = uploadedFile ? { mimeType: uploadedFile.type, data: uploadedFile.data } : null;
+      const data = await generateMarketingPlanSlides(brandName, period, history, goals, fileData);
       setResult(data);
     } catch (err) {
       alert("Lỗi kết nối AI. Vui lòng thử lại.");
@@ -44,7 +68,7 @@ const MarketingPlanSlides: React.FC = () => {
         <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
           <Presentation className="text-indigo-600" /> Tạo Slide Kế Hoạch Marketing (HTML Presentation)
         </h2>
-        <p className="text-gray-600 mt-1">AI tự động tạo bộ slide kế hoạch tháng/năm bao gồm phân tích, forecast và đề xuất.</p>
+        <p className="text-gray-600 mt-1">AI tự động phân tích dữ liệu từ ảnh/text và tạo bộ slide kế hoạch hoàn chỉnh.</p>
       </div>
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
@@ -73,16 +97,48 @@ const MarketingPlanSlides: React.FC = () => {
                />
              </div>
 
+             {/* File Upload Section */}
+             <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                <label className="flex items-center gap-2 text-sm font-bold text-blue-800 mb-2">
+                   <FileBarChart size={18} /> Phân tích dữ liệu tự động
+                </label>
+                <p className="text-xs text-blue-600 mb-3 leading-relaxed">
+                   Tải lên ảnh chụp màn hình Dashboard (FB Ads, Google Ads, GA4) hoặc file Excel/CSV dạng ảnh/text. AI sẽ tự động đọc số liệu để đưa vào slide.
+                </p>
+                
+                {!uploadedFile ? (
+                   <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-blue-300 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors bg-white">
+                      <Upload className="w-6 h-6 text-blue-400 mb-1" />
+                      <span className="text-xs text-gray-500">Click hoặc kéo thả file ảnh/text</span>
+                      <input type="file" className="hidden" accept="image/*,.txt,.csv" onChange={handleFileChange} />
+                   </label>
+                ) : (
+                   <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-blue-200 shadow-sm">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                         <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center text-blue-600 font-bold text-xs">
+                            {uploadedFile.type.includes('image') ? 'IMG' : 'TXT'}
+                         </div>
+                         <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-800 truncate">{uploadedFile.name}</p>
+                            <p className="text-xs text-green-600">Đã sẵn sàng phân tích</p>
+                         </div>
+                      </div>
+                      <button onClick={() => setUploadedFile(null)} className="text-gray-400 hover:text-red-500 p-1">
+                         <X size={16} />
+                      </button>
+                   </div>
+                )}
+             </div>
+
              <div>
-               <label className="block text-sm font-medium text-gray-700 mb-1">Số liệu quá khứ (History & Review)</label>
+               <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú thêm về lịch sử (Tùy chọn)</label>
                <textarea 
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                  rows={4}
-                  placeholder="VD: Doanh thu tháng trước đạt 500tr (tăng 10%). Chi phí Ads 100tr. Lượng khách hàng mới giảm nhẹ..."
+                  rows={2}
+                  placeholder="Bổ sung thông tin nếu không có trong file..."
                   value={history}
                   onChange={(e) => setHistory(e.target.value)}
                />
-               <p className="text-xs text-gray-500 mt-1">Nhập tóm tắt các chỉ số quan trọng đã đạt được.</p>
              </div>
 
              <div>
@@ -104,7 +160,7 @@ const MarketingPlanSlides: React.FC = () => {
               }`}
             >
               {loading ? <Loader2 className="animate-spin" /> : <Play size={20} fill="currentColor" />}
-              {loading ? 'Đang soạn thảo Slide...' : 'Tạo Slide Ngay'}
+              {loading ? 'Đang phân tích & tạo Slide...' : 'Tạo Slide Ngay'}
             </button>
            </div>
         </div>
@@ -159,7 +215,7 @@ const MarketingPlanSlides: React.FC = () => {
               ) : (
                  <div className="text-center text-gray-500">
                     <Presentation className="w-20 h-20 mx-auto mb-4 opacity-20" />
-                    <p>Nhập thông tin và nhấn nút tạo để xem bản trình bày.</p>
+                    <p>Nhập thông tin, tải ảnh báo cáo và nhấn nút tạo.</p>
                  </div>
               )}
            </div>

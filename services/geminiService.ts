@@ -369,27 +369,39 @@ export const generateMarketingPlanSlides = async (
   brandName: string,
   period: string,
   history: string,
-  goals: string
+  goals: string,
+  fileData?: { mimeType: string; data: string } | null
 ): Promise<string> => {
   const ai = getAiClient();
-  const prompt = `
+  
+  let promptText = `
     Bạn là một Giám đốc Marketing (CMO) chuyên nghiệp. Hãy tạo một bài thuyết trình (Slide Deck) kế hoạch Marketing bằng HTML/CSS/JS (Single file).
     
     Thông tin đầu vào:
     - Thương hiệu: "${brandName}"
     - Giai đoạn lập kế hoạch: "${period}"
-    - Lịch sử/Số liệu quá khứ: "${history}"
+    - Lịch sử/Số liệu quá khứ (User input): "${history}"
     - Mục tiêu & Đề xuất: "${goals}"
+  `;
 
+  if (fileData) {
+    promptText += `
+    \nQUAN TRỌNG: Người dùng ĐÃ ĐÍNH KÈM một hình ảnh báo cáo (ví dụ: Dashboard quảng cáo, file Excel, hoặc biểu đồ số liệu).
+    Hãy PHÂN TÍCH HÌNH ẢNH NÀY thật kỹ. Trích xuất tất cả các con số quan trọng (Doanh thu, Chi phí, CPC, CTR, ROAS, Leads, v.v.) và SỬ DỤNG CHÚNG để điền vào phần "Review Lịch sử & Số liệu" trong Slide.
+    Hãy so sánh số liệu từ hình ảnh với mục tiêu để đưa ra nhận xét sắc bén.
+    `;
+  }
+
+  promptText += `
     Yêu cầu kỹ thuật:
     1. Output là mã HTML5 đầy đủ, tích hợp Tailwind CSS qua CDN.
     2. Giao diện giống PowerPoint/Google Slides: Tỷ lệ 16:9, căn giữa màn hình.
     3. Có nút "Trước" (Prev) và "Sau" (Next) để chuyển slide. (Dùng JavaScript đơn giản nhúng trong thẻ <script>).
-    4. Cấu trúc các Slide:
+    4. Cấu trúc các Slide (Hãy tự tin điền số liệu giả định hợp lý nếu thiếu, nhưng ưu tiên số liệu từ hình ảnh/input):
        - Slide 1: Trang bìa (Tên brand, Tên kế hoạch, Tên người trình bày).
        - Slide 2: Tổng quan (Executive Summary).
-       - Slide 3: Review Lịch sử & Số liệu (Dựa trên input).
-       - Slide 4: Phân tích SWOT (Tự đề xuất dựa trên ngữ cảnh).
+       - Slide 3: Phân Tích Hiệu Quả (Data Driven) - Sử dụng số liệu trích xuất được.
+       - Slide 4: Phân tích SWOT.
        - Slide 5: Mục tiêu chiến lược (KPIs).
        - Slide 6: Chiến lược đề xuất (Key Initiatives).
        - Slide 7: Lộ trình triển khai (Timeline).
@@ -400,9 +412,14 @@ export const generateMarketingPlanSlides = async (
     Output format: Raw HTML code only.
   `;
   
+  const parts: any[] = [{ text: promptText }];
+  if (fileData) {
+    parts.unshift({ inlineData: { mimeType: fileData.mimeType, data: fileData.data } });
+  }
+
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash",
-    contents: prompt
+    contents: { parts }
   });
   
   let code = response.text || "";
