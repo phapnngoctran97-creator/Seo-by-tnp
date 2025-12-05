@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ToolType } from '../types';
 import { 
   Sparkles, Search, Zap, Network, QrCode, ArrowRight, 
@@ -7,7 +7,7 @@ import {
   Crop, Eraser, Move, Palette, Aperture, ImagePlus, List, Type,
   Clock, Timer, Users, Globe, Activity, ClipboardCheck,
   Megaphone, Target, Calculator, Layout, PieChart, Presentation, Pipette,
-  BarChart3, Link, TrendingUp, DollarSign
+  BarChart3, Link, TrendingUp, DollarSign, History
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -34,65 +34,16 @@ interface Category {
 
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [recentTools, setRecentTools] = useState<ToolItem[]>([]);
 
   // --- Real-time Stats State ---
   const [currentTime, setCurrentTime] = useState(new Date());
   const [onsiteSeconds, setOnsiteSeconds] = useState(0);
   const [userIp, setUserIp] = useState<string>('Đang tải...');
-  const [activeUsers, setActiveUsers] = useState(142); // Simulated base number
+  const [activeUsers, setActiveUsers] = useState(142); 
 
-  useEffect(() => {
-    // 1. Clock Timer
-    const clockInterval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    // 2. Onsite Duration Timer
-    // Check if we have a start time in session storage to persist across soft reloads
-    const storedStart = sessionStorage.getItem('sessionStartTime');
-    let startTime = Date.now();
-    
-    if (storedStart) {
-      startTime = parseInt(storedStart);
-    } else {
-      sessionStorage.setItem('sessionStartTime', startTime.toString());
-    }
-
-    const onsiteInterval = setInterval(() => {
-      const now = Date.now();
-      setOnsiteSeconds(Math.floor((now - startTime) / 1000));
-    }, 1000);
-
-    // 3. Fetch User IP
-    fetch('https://api.ipify.org?format=json')
-      .then(res => res.json())
-      .then(data => setUserIp(data.ip))
-      .catch(() => setUserIp('Không xác định'));
-
-    // 4. Simulate Active Users fluctuation
-    const userInterval = setInterval(() => {
-      setActiveUsers(prev => {
-        const change = Math.floor(Math.random() * 5) - 2; // -2 to +2
-        return Math.max(50, prev + change);
-      });
-    }, 3000);
-
-    return () => {
-      clearInterval(clockInterval);
-      clearInterval(onsiteInterval);
-      clearInterval(userInterval);
-    };
-  }, []);
-
-  // Format Helper for Duration
-  const formatDuration = (totalSeconds: number) => {
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    const pad = (num: number) => num.toString().padStart(2, '0');
-    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-  };
-
+  // --- DEFINING TOOLS DATA ---
   const adsTools: ToolItem[] = [
     { id: ToolType.ADS_STRUCTURE, title: 'Tạo Cấu Trúc Camp', desc: 'AI tạo sơ đồ chiến dịch.', icon: Network, color: 'text-blue-600', bg: 'bg-blue-50' },
     { id: ToolType.ADS_CONTENT, title: 'Viết Content Ads', desc: 'Headline & Copywriting.', icon: Megaphone, color: 'text-orange-600', bg: 'bg-orange-50' },
@@ -134,6 +85,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     { id: ToolType.WORD_COUNTER, title: 'Đếm Từ & Ký Tự', desc: 'Thống kê chi tiết văn bản.', icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50' },
     { id: ToolType.PLAGIARISM_CHECK, title: 'Kiểm Tra Đạo Văn', desc: 'Phân tích tính nguyên bản AI.', icon: BookOpen, color: 'text-green-600', bg: 'bg-green-50' },
   ];
+
+  const allTools = useMemo(() => [
+    ...adsTools, ...analyticsTools, ...seoTools, ...graphicTools, ...textTools
+  ], []);
 
   const categories: Category[] = [
     {
@@ -177,6 +132,67 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       tools: textTools
     }
   ];
+
+  // --- Search Logic ---
+  const filteredTools = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const lowerQ = searchQuery.toLowerCase();
+    return allTools.filter(t => 
+      t.title.toLowerCase().includes(lowerQ) || 
+      t.desc.toLowerCase().includes(lowerQ)
+    );
+  }, [searchQuery, allTools]);
+
+  // --- Effects ---
+  useEffect(() => {
+    // 1. Load Recent Tools
+    const loadRecents = () => {
+      try {
+        const storedRecents = localStorage.getItem('recent_tools');
+        if (storedRecents) {
+          const ids: ToolType[] = JSON.parse(storedRecents);
+          const matched = ids.map(id => allTools.find(t => t.id === id)).filter(Boolean) as ToolItem[];
+          setRecentTools(matched);
+        }
+      } catch (e) { console.error(e); }
+    };
+    loadRecents();
+
+    // 2. Stats Intervals
+    const clockInterval = setInterval(() => setCurrentTime(new Date()), 1000);
+
+    const storedStart = sessionStorage.getItem('sessionStartTime');
+    let startTime = Date.now();
+    if (storedStart) startTime = parseInt(storedStart);
+    else sessionStorage.setItem('sessionStartTime', startTime.toString());
+
+    const onsiteInterval = setInterval(() => {
+      setOnsiteSeconds(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
+
+    fetch('https://api.ipify.org?format=json')
+      .then(res => res.json())
+      .then(data => setUserIp(data.ip))
+      .catch(() => setUserIp('Không xác định'));
+
+    const userInterval = setInterval(() => {
+      setActiveUsers(prev => Math.max(50, prev + Math.floor(Math.random() * 5) - 2));
+    }, 3000);
+
+    return () => {
+      clearInterval(clockInterval);
+      clearInterval(onsiteInterval);
+      clearInterval(userInterval);
+    };
+  }, [allTools]);
+
+  const formatDuration = (totalSeconds: number) => {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const pad = (num: number) => num.toString().padStart(2, '0');
+    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  };
 
   const renderToolList = (tools: ToolItem[]) => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -254,50 +270,117 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         </div>
       </div>
 
-      <div className="mb-10 text-center">
+      <div className="mb-8 text-center">
         <h1 className="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">
           Bộ Công Cụ <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-cyan-600">SEO Master</span>
         </h1>
-        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+        <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-6">
           Tất cả công cụ bạn cần để tối ưu hóa Website, chỉnh sửa ảnh và xử lý nội dung.
-          Chọn một danh mục bên dưới để bắt đầu.
         </p>
+
+        {/* Search Bar */}
+        <div className="max-w-xl mx-auto relative group z-20">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+            </div>
+            <input 
+                type="text"
+                className="block w-full pl-12 pr-4 py-4 border border-gray-200 rounded-full leading-5 bg-white shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-gray-800"
+                placeholder="Tìm kiếm công cụ (VD: xóa nền, nén ảnh, viết content...)"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="absolute inset-y-0 right-4 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                    <X size={18} />
+                </button>
+            )}
+        </div>
       </div>
 
-      {/* Main Categories Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {categories.map((cat) => {
-          const Icon = cat.icon;
-          return (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat)}
-              className="relative group overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 h-64 text-left"
-            >
-              <div className={`absolute inset-0 bg-gradient-to-br ${cat.gradient} opacity-90 group-hover:opacity-100 transition-opacity`} />
-              <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-repeat" />
-              
-              <div className="relative p-6 h-full flex flex-col justify-between z-10 text-white">
-                 <div>
-                    <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-4 shadow-inner group-hover:scale-110 transition-transform duration-500">
-                       <Icon className="w-6 h-6 text-white" />
+      {/* SEARCH RESULTS MODE */}
+      {searchQuery ? (
+          <div className="animate-in fade-in slide-in-from-bottom-2">
+             <h3 className="font-bold text-gray-700 mb-4 ml-1">Kết quả tìm kiếm cho "{searchQuery}"</h3>
+             {filteredTools.length > 0 ? (
+                 renderToolList(filteredTools)
+             ) : (
+                 <div className="text-center py-10 text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                    <Search className="w-10 h-10 mx-auto mb-2 opacity-20" />
+                    <p>Không tìm thấy công cụ nào phù hợp.</p>
+                 </div>
+             )}
+          </div>
+      ) : (
+        <>
+          {/* RECENTLY USED SECTION */}
+          {recentTools.length > 0 && (
+             <div className="mb-10 animate-in fade-in slide-in-from-bottom-4">
+                <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2">
+                    <History size={20} className="text-indigo-500" /> Gần đây
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                   {recentTools.map(tool => {
+                       const Icon = tool.icon;
+                       return (
+                           <button
+                             key={tool.id}
+                             onClick={() => onNavigate(tool.id)}
+                             className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 hover:border-indigo-300 hover:shadow-md transition-all flex items-center gap-3 text-left"
+                           >
+                              <div className={`${tool.bg} w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0`}>
+                                 <Icon className={`${tool.color} w-5 h-5`} />
+                              </div>
+                              <div className="min-w-0">
+                                 <h4 className="font-bold text-sm text-gray-800 truncate">{tool.title}</h4>
+                                 <p className="text-[10px] text-gray-500 truncate">Truy cập nhanh</p>
+                              </div>
+                           </button>
+                       )
+                   })}
+                </div>
+             </div>
+          )}
+
+          {/* MAIN CATEGORIES GRID */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {categories.map((cat) => {
+              const Icon = cat.icon;
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat)}
+                  className="relative group overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 h-64 text-left"
+                >
+                  <div className={`absolute inset-0 bg-gradient-to-br ${cat.gradient} opacity-90 group-hover:opacity-100 transition-opacity`} />
+                  <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-repeat" />
+                  
+                  <div className="relative p-6 h-full flex flex-col justify-between z-10 text-white">
+                    <div>
+                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-4 shadow-inner group-hover:scale-110 transition-transform duration-500">
+                          <Icon className="w-6 h-6 text-white" />
+                        </div>
+                        <h2 className="text-xl font-bold mb-2">{cat.title}</h2>
+                        <p className="text-xs text-white/80 font-medium leading-relaxed line-clamp-3">{cat.description}</p>
                     </div>
-                    <h2 className="text-xl font-bold mb-2">{cat.title}</h2>
-                    <p className="text-xs text-white/80 font-medium leading-relaxed line-clamp-3">{cat.description}</p>
-                 </div>
-                 <div className="flex items-center gap-2 font-bold text-xs bg-white/20 w-fit px-3 py-1.5 rounded-full backdrop-blur-md group-hover:bg-white group-hover:text-indigo-600 transition-colors">
-                    {cat.tools.length} công cụ <ArrowRight className="w-3 h-3" />
-                 </div>
-              </div>
-            </button>
-          )
-        })}
-      </div>
+                    <div className="flex items-center gap-2 font-bold text-xs bg-white/20 w-fit px-3 py-1.5 rounded-full backdrop-blur-md group-hover:bg-white group-hover:text-indigo-600 transition-colors">
+                        {cat.tools.length} công cụ <ArrowRight className="w-3 h-3" />
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
 
       {/* Footer Info */}
       <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 text-center text-gray-500 text-sm">
          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-            <strong className="block text-xl text-gray-900 mb-1">{seoTools.length + graphicTools.length + textTools.length + adsTools.length + analyticsTools.length}</strong>
+            <strong className="block text-xl text-gray-900 mb-1">{allTools.length}</strong>
             Công cụ tích hợp
          </div>
          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">

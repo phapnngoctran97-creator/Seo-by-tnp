@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import MetaGenerator from './components/Tools/MetaGenerator';
 import KeywordChecker from './components/Tools/KeywordChecker';
@@ -43,6 +43,27 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showApiModal, setShowApiModal] = useState(false);
 
+  // Hàm điều hướng thông minh: Lưu lịch sử + Chuyển trang
+  const navigateToTool = (tool: ToolType) => {
+    setActiveTool(tool);
+    setIsSidebarOpen(false);
+
+    // Lưu vào lịch sử (trừ Dashboard)
+    if (tool !== ToolType.DASHBOARD) {
+      try {
+        const recentJSON = localStorage.getItem('recent_tools');
+        let recent: ToolType[] = recentJSON ? JSON.parse(recentJSON) : [];
+        
+        // Xóa trùng lặp và đưa tool mới nhất lên đầu
+        recent = [tool, ...recent.filter(t => t !== tool)].slice(0, 4);
+        
+        localStorage.setItem('recent_tools', JSON.stringify(recent));
+      } catch (e) {
+        console.error("Failed to save history", e);
+      }
+    }
+  };
+
   const renderContent = () => {
     switch (activeTool) {
       // SEO Tools
@@ -82,7 +103,7 @@ const App: React.FC = () => {
       case ToolType.COST_PER_RESULT: return <CostPerResult />;
       case ToolType.MINI_DASHBOARD: return <MiniAnalyticsDash />;
 
-      default: return <Dashboard onNavigate={setActiveTool} />;
+      default: return <Dashboard onNavigate={navigateToTool} />;
     }
   };
 
@@ -102,10 +123,7 @@ const App: React.FC = () => {
       {/* Sidebar */}
       <Sidebar 
         activeTool={activeTool} 
-        onSelect={(tool) => {
-          setActiveTool(tool);
-          setIsSidebarOpen(false);
-        }}
+        onSelect={navigateToTool}
         isOpen={isSidebarOpen}
         onOpenSettings={() => {
           setShowApiModal(true);
