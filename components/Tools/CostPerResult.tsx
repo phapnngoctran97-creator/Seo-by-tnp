@@ -92,17 +92,17 @@ const CostPerResult: React.FC = () => {
                                 </td>
                                 <td className="px-2 py-2">
                                     <input 
-                                       type="number"
-                                       value={c.spend}
-                                       onChange={(e) => updateChannel(c.id, 'spend', parseFloat(e.target.value) || 0)}
+                                       type="text"
+                                       value={c.spend.toLocaleString('en-US')}
+                                       onChange={(e) => updateChannel(c.id, 'spend', parseFloat(e.target.value.replace(/,/g, '')) || 0)}
                                        className="w-24 p-1 border rounded text-right focus:ring-1 focus:ring-cyan-500 outline-none"
                                     />
                                 </td>
                                 <td className="px-2 py-2">
                                     <input 
-                                       type="number"
-                                       value={c.results}
-                                       onChange={(e) => updateChannel(c.id, 'results', parseFloat(e.target.value) || 0)}
+                                       type="text"
+                                       value={c.results.toLocaleString('en-US')}
+                                       onChange={(e) => updateChannel(c.id, 'results', parseFloat(e.target.value.replace(/,/g, '')) || 0)}
                                        className="w-20 p-1 border rounded text-right focus:ring-1 focus:ring-cyan-500 outline-none"
                                     />
                                 </td>

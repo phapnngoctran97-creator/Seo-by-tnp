@@ -1,12 +1,21 @@
 
 import React, { useState } from 'react';
-import { PieChart, Target, DollarSign, ArrowRight } from 'lucide-react';
+import { PieChart, Target } from 'lucide-react';
 
 const BudgetPlanner: React.FC = () => {
   const [targetLeads, setTargetLeads] = useState<number | ''>('');
   const [cpl, setCpl] = useState<number | ''>(''); // Cost per Lead expected
   const [closeRate, setCloseRate] = useState<number | ''>(20); // % chốt sale
   const [productPrice, setProductPrice] = useState<number | ''>('');
+
+  // Input Handler
+  const handleNumChange = (val: string, setter: (v: number | '') => void) => {
+    const raw = val.replace(/,/g, '');
+    if (raw === '') setter('');
+    else if (!isNaN(Number(raw))) setter(Number(raw));
+  };
+
+  const fmt = (num: number | '') => num === '' ? '' : num.toLocaleString('en-US');
 
   // Derived stats
   const budget = (Number(targetLeads) || 0) * (Number(cpl) || 0);
@@ -30,19 +39,43 @@ const BudgetPlanner: React.FC = () => {
             <div className="space-y-4">
                <div>
                   <label className="block text-sm font-medium text-gray-600 mb-1">Số khách hàng tiềm năng (Leads) muốn có</label>
-                  <input type="number" value={targetLeads} onChange={e => setTargetLeads(parseFloat(e.target.value))} className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="VD: 100" />
+                  <input 
+                    type="text" 
+                    value={fmt(targetLeads)} 
+                    onChange={e => handleNumChange(e.target.value, setTargetLeads)} 
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 outline-none" 
+                    placeholder="VD: 100" 
+                  />
                </div>
                <div>
                   <label className="block text-sm font-medium text-gray-600 mb-1">Chi phí chấp nhận trên mỗi Lead (CPL dự kiến)</label>
-                  <input type="number" value={cpl} onChange={e => setCpl(parseFloat(e.target.value))} className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="VD: 50000" />
+                  <input 
+                    type="text" 
+                    value={fmt(cpl)} 
+                    onChange={e => handleNumChange(e.target.value, setCpl)} 
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 outline-none" 
+                    placeholder="VD: 50,000" 
+                  />
                </div>
                <div className="pt-4 border-t border-gray-100">
                   <label className="block text-sm font-medium text-gray-600 mb-1">Tỷ lệ chốt sale (%)</label>
-                  <input type="number" value={closeRate} onChange={e => setCloseRate(parseFloat(e.target.value))} className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="VD: 20" />
+                  <input 
+                    type="number" 
+                    value={closeRate} 
+                    onChange={e => setCloseRate(parseFloat(e.target.value))} 
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 outline-none" 
+                    placeholder="VD: 20" 
+                  />
                </div>
                <div>
                   <label className="block text-sm font-medium text-gray-600 mb-1">Giá trị đơn hàng trung bình</label>
-                  <input type="number" value={productPrice} onChange={e => setProductPrice(parseFloat(e.target.value))} className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="VD: 500000" />
+                  <input 
+                    type="text" 
+                    value={fmt(productPrice)} 
+                    onChange={e => handleNumChange(e.target.value, setProductPrice)} 
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-indigo-500 outline-none" 
+                    placeholder="VD: 500,000" 
+                  />
                </div>
             </div>
          </div>

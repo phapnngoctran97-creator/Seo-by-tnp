@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Calculator, DollarSign, MousePointer, UserCheck, TrendingUp } from 'lucide-react';
+import { Calculator, DollarSign, TrendingUp } from 'lucide-react';
 
 const AdsCalculator: React.FC = () => {
   const [spend, setSpend] = useState<number | ''>('');
@@ -16,6 +16,15 @@ const AdsCalculator: React.FC = () => {
   const [roas, setRoas] = useState(0);
   const [cpm, setCpm] = useState(0);
   const [cr, setCr] = useState(0);
+
+  // Input Handler
+  const handleNumChange = (val: string, setter: (v: number | '') => void) => {
+    const raw = val.replace(/,/g, '');
+    if (raw === '') setter('');
+    else if (!isNaN(Number(raw))) setter(Number(raw));
+  };
+
+  const fmt = (num: number | '') => num === '' ? '' : num.toLocaleString('en-US');
 
   useEffect(() => {
     const s = Number(spend) || 0;
@@ -48,23 +57,53 @@ const AdsCalculator: React.FC = () => {
            <div className="space-y-4">
              <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">Chi tiêu (Cost/Spend)</label>
-                <input type="number" value={spend} onChange={e => setSpend(parseFloat(e.target.value))} className="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500 outline-none" placeholder="VD: 5000000" />
+                <input 
+                    type="text" 
+                    value={fmt(spend)} 
+                    onChange={e => handleNumChange(e.target.value, setSpend)} 
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500 outline-none" 
+                    placeholder="VD: 5,000,000" 
+                />
              </div>
              <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">Số lần hiển thị (Impressions)</label>
-                <input type="number" value={impressions} onChange={e => setImpressions(parseFloat(e.target.value))} className="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500 outline-none" placeholder="VD: 100000" />
+                <input 
+                    type="text" 
+                    value={fmt(impressions)} 
+                    onChange={e => handleNumChange(e.target.value, setImpressions)} 
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500 outline-none" 
+                    placeholder="VD: 100,000" 
+                />
              </div>
              <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">Số lượt click (Clicks)</label>
-                <input type="number" value={clicks} onChange={e => setClicks(parseFloat(e.target.value))} className="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500 outline-none" placeholder="VD: 2000" />
+                <input 
+                    type="text" 
+                    value={fmt(clicks)} 
+                    onChange={e => handleNumChange(e.target.value, setClicks)} 
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500 outline-none" 
+                    placeholder="VD: 2,000" 
+                />
              </div>
              <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">Số chuyển đổi/Đơn hàng (Conversions)</label>
-                <input type="number" value={conversions} onChange={e => setConversions(parseFloat(e.target.value))} className="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500 outline-none" placeholder="VD: 50" />
+                <input 
+                    type="text" 
+                    value={fmt(conversions)} 
+                    onChange={e => handleNumChange(e.target.value, setConversions)} 
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500 outline-none" 
+                    placeholder="VD: 50" 
+                />
              </div>
              <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">Doanh thu (Revenue)</label>
-                <input type="number" value={revenue} onChange={e => setRevenue(parseFloat(e.target.value))} className="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500 outline-none" placeholder="VD: 20000000" />
+                <input 
+                    type="text" 
+                    value={fmt(revenue)} 
+                    onChange={e => handleNumChange(e.target.value, setRevenue)} 
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500 outline-none" 
+                    placeholder="VD: 20,000,000" 
+                />
              </div>
            </div>
         </div>
