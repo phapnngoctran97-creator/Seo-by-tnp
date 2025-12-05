@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ToolType } from '../types';
 import { 
   Sparkles, Search, Zap, Network, QrCode, ArrowRight, 
   FileText, Image as ImageIcon, BookOpen, X,
-  Crop, Eraser, Move, Palette, Aperture, LayoutGrid, Type, ImagePlus, List
+  Crop, Eraser, Move, Palette, Aperture, ImagePlus, List, Type,
+  Clock, Timer, Users, Globe, Activity
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -30,6 +31,64 @@ interface Category {
 
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+
+  // --- Real-time Stats State ---
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [onsiteSeconds, setOnsiteSeconds] = useState(0);
+  const [userIp, setUserIp] = useState<string>('Đang tải...');
+  const [activeUsers, setActiveUsers] = useState(142); // Simulated base number
+
+  useEffect(() => {
+    // 1. Clock Timer
+    const clockInterval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    // 2. Onsite Duration Timer
+    // Check if we have a start time in session storage to persist across soft reloads
+    const storedStart = sessionStorage.getItem('sessionStartTime');
+    let startTime = Date.now();
+    
+    if (storedStart) {
+      startTime = parseInt(storedStart);
+    } else {
+      sessionStorage.setItem('sessionStartTime', startTime.toString());
+    }
+
+    const onsiteInterval = setInterval(() => {
+      const now = Date.now();
+      setOnsiteSeconds(Math.floor((now - startTime) / 1000));
+    }, 1000);
+
+    // 3. Fetch User IP
+    fetch('https://api.ipify.org?format=json')
+      .then(res => res.json())
+      .then(data => setUserIp(data.ip))
+      .catch(() => setUserIp('Không xác định'));
+
+    // 4. Simulate Active Users fluctuation
+    const userInterval = setInterval(() => {
+      setActiveUsers(prev => {
+        const change = Math.floor(Math.random() * 5) - 2; // -2 to +2
+        return Math.max(50, prev + change);
+      });
+    }, 3000);
+
+    return () => {
+      clearInterval(clockInterval);
+      clearInterval(onsiteInterval);
+      clearInterval(userInterval);
+    };
+  }, []);
+
+  // Format Helper for Duration
+  const formatDuration = (totalSeconds: number) => {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const pad = (num: number) => num.toString().padStart(2, '0');
+    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  };
 
   const seoTools: ToolItem[] = [
     { id: ToolType.META_GEN, title: 'Tạo Meta Description', desc: 'AI tạo mô tả chuẩn SEO.', icon: Sparkles, color: 'text-indigo-600', bg: 'bg-indigo-50' },
@@ -109,6 +168,54 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   return (
     <div className="max-w-6xl mx-auto pb-10">
+      
+      {/* Real-time Stats Section */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3">
+           <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+              <Clock size={20} />
+           </div>
+           <div>
+              <p className="text-[10px] uppercase text-gray-500 font-bold">Thời gian thực</p>
+              <p className="text-sm font-bold text-gray-800">{currentTime.toLocaleTimeString('vi-VN')}</p>
+           </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3">
+           <div className="p-2 bg-green-50 text-green-600 rounded-lg">
+              <Timer size={20} />
+           </div>
+           <div>
+              <p className="text-[10px] uppercase text-gray-500 font-bold">Thời gian Onsite</p>
+              <p className="text-sm font-bold text-gray-800 font-mono">{formatDuration(onsiteSeconds)}</p>
+           </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3">
+           <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
+              <Globe size={20} />
+           </div>
+           <div>
+              <p className="text-[10px] uppercase text-gray-500 font-bold">IP Của Bạn</p>
+              <p className="text-sm font-bold text-gray-800 truncate" title={userIp}>{userIp}</p>
+           </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3">
+           <div className="p-2 bg-orange-50 text-orange-600 rounded-lg relative">
+              <Users size={20} />
+              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-orange-500"></span>
+              </span>
+           </div>
+           <div>
+              <p className="text-[10px] uppercase text-gray-500 font-bold">Đang Truy Cập</p>
+              <p className="text-sm font-bold text-gray-800">{activeUsers}</p>
+           </div>
+        </div>
+      </div>
+
       <div className="mb-10 text-center">
         <h1 className="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">
           Bộ Công Cụ <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-cyan-600">SEO Master</span>
