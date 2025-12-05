@@ -9,7 +9,6 @@ import QrGenerator from './components/Tools/QrGenerator';
 import WordCounter from './components/Tools/WordCounter';
 import ImageCompressor from './components/Tools/ImageCompressor';
 import PlagiarismChecker from './components/Tools/PlagiarismChecker';
-import PdfTools from './components/Tools/PdfTools';
 
 import Dashboard from './components/Dashboard';
 import ApiKeyModal from './components/ApiKeyModal';
@@ -34,7 +33,6 @@ const App: React.FC = () => {
       case ToolType.WORD_COUNTER: return <WordCounter />;
       case ToolType.IMG_COMPRESS: return <ImageCompressor />;
       case ToolType.PLAGIARISM_CHECK: return <PlagiarismChecker />;
-      case ToolType.PDF_TOOLS: return <PdfTools />;
       
       default: return <Dashboard onNavigate={setActiveTool} />;
     }

@@ -10,7 +10,6 @@ export enum ToolType {
   // Text Tools
   WORD_COUNTER = 'WORD_COUNTER',
   IMG_COMPRESS = 'IMG_COMPRESS',
-  PDF_TOOLS = 'PDF_TOOLS',
   PLAGIARISM_CHECK = 'PLAGIARISM_CHECK'
 }
 

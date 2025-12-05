@@ -3,7 +3,7 @@ import { NavGroup, ToolType } from '../types';
 import { 
   LayoutDashboard, Sparkles, Search, Zap, Network, QrCode, 
   Settings, Key, ChevronDown, ChevronRight, FileText, 
-  Image as ImageIcon, FileType, BookOpen 
+  Image as ImageIcon, BookOpen 
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -30,7 +30,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenS
     {
       title: 'Xử Lý Văn Bản',
       items: [
-        { id: ToolType.PDF_TOOLS, label: 'Công cụ PDF', icon: FileType, description: 'Convert & Merge' },
         { id: ToolType.IMG_COMPRESS, label: 'Nén Ảnh', icon: ImageIcon, description: 'Giảm dung lượng' },
         { id: ToolType.WORD_COUNTER, label: 'Đếm Từ & Ký Tự', icon: FileText, description: 'Thống kê văn bản' },
         { id: ToolType.PLAGIARISM_CHECK, label: 'Kiểm Tra Đạo Văn', icon: BookOpen, description: 'Check trùng lặp' },

@@ -1,6 +1,6 @@
 import React from 'react';
 import { ToolType } from '../types';
-import { Sparkles, Search, Zap, Network, QrCode, ArrowRight, FileText, Image as ImageIcon, FileType, BookOpen } from 'lucide-react';
+import { Sparkles, Search, Zap, Network, QrCode, ArrowRight, FileText, Image as ImageIcon, BookOpen } from 'lucide-react';
 
 interface DashboardProps {
   onNavigate: (tool: ToolType) => void;
@@ -16,7 +16,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   ];
 
   const textTools = [
-    { id: ToolType.PDF_TOOLS, title: 'Công cụ PDF', desc: 'Chuyển đổi & Ghép file PDF.', icon: FileType, color: 'text-red-600', bg: 'bg-red-50' },
     { id: ToolType.IMG_COMPRESS, title: 'Nén Ảnh', desc: 'Giảm dung lượng JPG/PNG.', icon: ImageIcon, color: 'text-pink-600', bg: 'bg-pink-50' },
     { id: ToolType.WORD_COUNTER, title: 'Đếm Từ & Ký Tự', desc: 'Thống kê chi tiết văn bản.', icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50' },
     { id: ToolType.PLAGIARISM_CHECK, title: 'Kiểm Tra Đạo Văn', desc: 'Phân tích tính nguyên bản AI.', icon: BookOpen, color: 'text-green-600', bg: 'bg-green-50' },
