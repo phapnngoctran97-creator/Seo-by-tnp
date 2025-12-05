@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Facebook, Upload, Download, RefreshCw, Type, Image as ImageIcon, 
-  Smartphone, Monitor, Layers, Sliders, Share2, UploadCloud, X 
+  Monitor, Layers, Sliders, UploadCloud, Move, ZoomIn, MousePointer2, Check
 } from 'lucide-react';
 
 interface Format {
@@ -19,35 +19,40 @@ const FB_FORMATS: Format[] = [
   { label: 'Story / Reel (9:16)', w: 1080, h: 1920, type: 'story' },
   { label: 'Ảnh Bìa (Cover)', w: 820, h: 312, type: 'cover' },
   { label: 'Ảnh Bìa Group', w: 1640, h: 856, type: 'cover' },
-  { label: 'Quảng Cáo Carousel', w: 1080, h: 1080, type: 'post' },
 ];
 
 const FacebookCreator: React.FC = () => {
-  // Main State
-  const [image, setImage] = useState<HTMLImageElement | null>(null);
+  // --- STATE ---
   const [format, setFormat] = useState<Format>(FB_FORMATS[0]);
   
-  // Adjustments
-  const [brightness, setBrightness] = useState(100);
-  const [contrast, setContrast] = useState(100);
-  const [saturation, setSaturation] = useState(100);
-  const [scale, setScale] = useState(1);
-  const [offsetX, setOffsetX] = useState(0);
-  const [offsetY, setOffsetY] = useState(0);
+  // Background Image State
+  const [image, setImage] = useState<HTMLImageElement | null>(null);
+  const [imgPos, setImgPos] = useState({ x: 0, y: 0, scale: 1 });
+  const [filters, setFilters] = useState({ brightness: 100, contrast: 100, saturate: 100 });
 
-  // Watermark
-  const [wmText, setWmText] = useState('');
-  const [wmImage, setWmImage] = useState<HTMLImageElement | null>(null);
+  // Watermark State
   const [wmType, setWmType] = useState<'none' | 'text' | 'image'>('none');
-  const [wmOpacity, setWmOpacity] = useState(0.8);
-  const [wmSize, setWmSize] = useState(20); // Font size or Image scale
-  const [wmX, setWmX] = useState(50); // %
-  const [wmY, setWmY] = useState(50); // %
-  const [wmColor, setWmColor] = useState('#ffffff');
+  const [wmText, setWmText] = useState('Your Brand');
+  const [wmImage, setWmImage] = useState<HTMLImageElement | null>(null);
+  const [wmConfig, setWmConfig] = useState({ 
+    x: 0, y: 0, // Coordinates relative to center
+    scale: 1, 
+    opacity: 0.8, 
+    color: '#ffffff',
+    fontSize: 40
+  });
+
+  // Interaction State
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragTarget, setDragTarget] = useState<'bg' | 'wm' | null>(null);
+  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+  const [canvasScale, setCanvasScale] = useState(1); // Visual scale of canvas on screen
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  
-  // File Handlers
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // --- HANDLERS ---
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -57,9 +62,7 @@ const FacebookCreator: React.FC = () => {
         img.src = evt.target?.result as string;
         img.onload = () => {
           setImage(img);
-          setScale(1);
-          setOffsetX(0);
-          setOffsetY(0);
+          setImgPos({ x: 0, y: 0, scale: 1 }); // Reset pos
         };
       };
       reader.readAsDataURL(file);
@@ -76,265 +79,342 @@ const FacebookCreator: React.FC = () => {
         img.onload = () => {
           setWmImage(img);
           setWmType('image');
+          setWmConfig(prev => ({ ...prev, scale: 0.2 })); // Default 20% size
         };
       };
       reader.readAsDataURL(file);
     }
   };
 
-  // Canvas Drawing
-  useEffect(() => {
+  // --- DRAWING LOGIC ---
+  const draw = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // 1. Setup Canvas
+    // 1. Setup
     canvas.width = format.w;
     canvas.height = format.h;
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
 
-    // Fill background
-    ctx.fillStyle = '#f0f2f5'; // FB Light Grey
+    // Fill BG
+    ctx.fillStyle = '#f0f2f5';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // 2. Draw Image
+    // 2. Draw Background Image
     if (image) {
       ctx.save();
-      // Apply filters
-      ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
+      ctx.filter = `brightness(${filters.brightness}%) contrast(${filters.contrast}%) saturate(${filters.saturate}%)`;
       
-      // Calculate centering & fitting
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
-      
-      ctx.translate(centerX + offsetX, centerY + offsetY);
-      ctx.scale(scale, scale);
-      
-      // Draw centered
+      ctx.translate(centerX + imgPos.x, centerY + imgPos.y);
+      ctx.scale(imgPos.scale, imgPos.scale);
       ctx.drawImage(image, -image.width / 2, -image.height / 2);
-      
       ctx.restore();
     } else {
-      // Placeholder text
       ctx.fillStyle = '#cbd5e1';
       ctx.textAlign = 'center';
-      ctx.font = 'bold 40px sans-serif';
-      ctx.fillText("Tải ảnh lên", canvas.width / 2, canvas.height / 2);
+      ctx.font = 'bold 40px Inter, sans-serif';
+      ctx.fillText("Kéo thả hoặc tải ảnh lên", centerX, centerY);
     }
 
     // 3. Draw Watermark
-    if (wmType === 'text' && wmText) {
+    if (wmType !== 'none') {
       ctx.save();
-      ctx.globalAlpha = wmOpacity;
-      ctx.fillStyle = wmColor;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const fontSize = (canvas.width * wmSize) / 100; // Relative font size
-      ctx.font = `bold ${fontSize}px sans-serif`;
-      ctx.shadowColor = 'rgba(0,0,0,0.5)';
-      ctx.shadowBlur = 4;
+      ctx.globalAlpha = wmConfig.opacity;
+      ctx.translate(centerX + wmConfig.x, centerY + wmConfig.y);
       
-      const x = (canvas.width * wmX) / 100;
-      const y = (canvas.height * wmY) / 100;
-      
-      ctx.fillText(wmText, x, y);
-      ctx.restore();
-    } else if (wmType === 'image' && wmImage) {
-      ctx.save();
-      ctx.globalAlpha = wmOpacity;
-      
-      // Calculate size relative to canvas width
-      const targetW = (canvas.width * wmSize) / 100; 
-      const ratio = wmImage.width / wmImage.height;
-      const targetH = targetW / ratio;
-      
-      const x = (canvas.width * wmX) / 100 - (targetW / 2);
-      const y = (canvas.height * wmY) / 100 - (targetH / 2);
-      
-      ctx.drawImage(wmImage, x, y, targetW, targetH);
+      // Draw selection border if dragging watermark
+      if (dragTarget === 'wm') {
+          ctx.strokeStyle = '#3b82f6';
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 5]);
+      }
+
+      if (wmType === 'text') {
+        ctx.fillStyle = wmConfig.color;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = `bold ${wmConfig.fontSize * wmConfig.scale}px Inter, sans-serif`;
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 4;
+        
+        // Measure text for hit detection box (approx)
+        if (dragTarget === 'wm') {
+            const metrics = ctx.measureText(wmText);
+            const h = wmConfig.fontSize * wmConfig.scale; 
+            ctx.strokeRect(-metrics.width/2 - 10, -h/2 - 10, metrics.width + 20, h + 20);
+        }
+        
+        ctx.fillText(wmText, 0, 0);
+
+      } else if (wmType === 'image' && wmImage) {
+        const targetW = format.w * wmConfig.scale;
+        const ratio = wmImage.width / wmImage.height;
+        const targetH = targetW / ratio;
+        
+        if (dragTarget === 'wm') {
+            ctx.strokeRect(-targetW/2 - 5, -targetH/2 - 5, targetW + 10, targetH + 10);
+        }
+
+        ctx.drawImage(wmImage, -targetW/2, -targetH/2, targetW, targetH);
+      }
       ctx.restore();
     }
+  };
 
-  }, [image, format, brightness, contrast, saturation, scale, offsetX, offsetY, wmText, wmImage, wmType, wmOpacity, wmSize, wmX, wmY, wmColor]);
+  // Trigger draw on any state change
+  useEffect(() => {
+    draw();
+  }, [format, image, imgPos, filters, wmType, wmText, wmImage, wmConfig, dragTarget]);
 
-  // Actions
+  // Fit canvas to screen
+  useEffect(() => {
+    const resize = () => {
+      if (containerRef.current) {
+        const { clientWidth, clientHeight } = containerRef.current;
+        const scale = Math.min((clientWidth - 40) / format.w, (clientHeight - 40) / format.h);
+        setCanvasScale(scale);
+      }
+    };
+    resize();
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, [format]);
+
+
+  // --- INTERACTION ---
+
+  const getCanvasCoords = (e: React.MouseEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY
+    };
+  };
+
+  const isHitWatermark = (cx: number, cy: number) => {
+      if (wmType === 'none') return false;
+      const centerX = format.w / 2;
+      const centerY = format.h / 2;
+      const wx = centerX + wmConfig.x;
+      const wy = centerY + wmConfig.y;
+      
+      // Simple bounding box approximation
+      const boxSize = wmType === 'image' ? (format.w * wmConfig.scale) : (wmConfig.fontSize * wmConfig.scale * wmText.length * 0.6);
+      const half = boxSize / 2;
+
+      return (cx >= wx - half && cx <= wx + half && cy >= wy - half && cy <= wy + half);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const { x, y } = getCanvasCoords(e);
+    
+    // Check hit watermark first (layer on top)
+    if (isHitWatermark(x, y)) {
+        setDragTarget('wm');
+        setStartPos({ x: x - wmConfig.x, y: y - wmConfig.y });
+    } else {
+        setDragTarget('bg');
+        setStartPos({ x: x - imgPos.x, y: y - imgPos.y });
+    }
+    setIsDragging(true);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) {
+        // Just hover effect
+        const { x, y } = getCanvasCoords(e);
+        if (canvasRef.current) {
+            canvasRef.current.style.cursor = isHitWatermark(x, y) ? 'move' : 'default';
+        }
+        return;
+    }
+
+    const { x, y } = getCanvasCoords(e);
+
+    if (dragTarget === 'wm') {
+        setWmConfig(prev => ({ ...prev, x: x - startPos.x, y: y - startPos.y }));
+    } else if (dragTarget === 'bg') {
+        setImgPos(prev => ({ ...prev, x: x - startPos.x, y: y - startPos.y }));
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    setDragTarget(null);
+  };
+
   const handleDownload = () => {
     if (canvasRef.current) {
       const link = document.createElement('a');
-      link.download = `fb_creator_${format.type}_${Date.now()}.png`;
+      link.download = `fb_post_${Date.now()}.png`;
       link.href = canvasRef.current.toDataURL('image/png', 1.0);
       link.click();
     }
   };
 
-  const handleUploadToFB = () => {
-    // Simulated upload - open Creator Studio
-    if (confirm("Ảnh của bạn đã sẵn sàng! \n\nHệ thống sẽ tải ảnh xuống máy của bạn, sau đó mở Facebook Creator Studio để bạn đăng tải. \n(Kết nối API trực tiếp yêu cầu quyền Doanh nghiệp).")) {
-      handleDownload();
-      window.open('https://business.facebook.com/creatorstudio', '_blank');
-    }
+  const handleConnectFB = () => {
+      if (confirm("Hệ thống sẽ tải ảnh về máy và mở Meta Business Suite để bạn đăng bài.\n(Do chính sách bảo mật, trình duyệt không thể tự động đăng bài nếu không có Server Backend).")) {
+          handleDownload();
+          window.open('https://business.facebook.com/latest/home', '_blank');
+      }
   };
 
   return (
-    <div className="max-w-7xl mx-auto pb-12">
+    <div className="max-w-7xl mx-auto pb-10">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <Facebook className="text-blue-600" /> Facebook Creator Studio (Image Editor)
+          <Facebook className="text-blue-600" /> Facebook Creator Studio (Pro)
         </h2>
-        <p className="text-gray-600 mt-2">Tạo ảnh chuẩn kích thước Facebook, Instagram Post/Story, đóng dấu bản quyền và tải lên.</p>
+        <p className="text-gray-600 mt-2">Thiết kế ảnh tương tác Live: Kéo thả logo, chỉnh màu và xuất bản.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* LEFT COLUMN: CONTROLS */}
-        <div className="lg:col-span-4 space-y-6">
-          
-          {/* Upload */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-blue-50 transition-colors cursor-pointer relative group">
-                 <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={handleImageUpload} />
-                 <Upload className="w-10 h-10 text-blue-400 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                 <span className="font-bold text-gray-700 block">Tải ảnh gốc</span>
-                 <span className="text-xs text-gray-400">JPG, PNG (Max 10MB)</span>
-             </div>
-          </div>
-
-          {/* Formats */}
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-             <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 border-b pb-2 flex items-center gap-2">
-                <Monitor size={14}/> Chọn định dạng
-             </h3>
-             <div className="grid grid-cols-2 gap-2">
-                {FB_FORMATS.map((f, i) => (
-                   <button 
-                      key={i}
-                      onClick={() => setFormat(f)}
-                      className={`text-xs p-2 rounded border text-left transition-colors flex flex-col ${format.label === f.label ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-                   >
-                      <span className="font-bold">{f.label}</span>
-                      <span className={`text-[10px] ${format.label === f.label ? 'text-blue-200' : 'text-gray-400'}`}>{f.w} x {f.h} px</span>
-                   </button>
-                ))}
-             </div>
-          </div>
-
-          {/* Adjustments */}
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-             <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 border-b pb-2 flex items-center gap-2">
-                <Sliders size={14}/> Chỉnh màu & Bố cục
-             </h3>
-             <div className="space-y-4">
-                <div>
-                   <div className="flex justify-between text-xs mb-1"><span>Zoom</span> <span>{scale.toFixed(1)}x</span></div>
-                   <input type="range" min="0.1" max="3" step="0.1" value={scale} onChange={(e) => setScale(parseFloat(e.target.value))} className="w-full h-1.5 bg-gray-200 rounded-lg accent-blue-600" />
+        {/* LEFT: TOOLS */}
+        <div className="lg:col-span-4 space-y-5 h-[calc(100vh-180px)] overflow-y-auto pr-2 custom-scrollbar">
+            
+            {/* 1. Format & Upload */}
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
+                    {FB_FORMATS.map((f, i) => (
+                        <button 
+                            key={i} 
+                            onClick={() => setFormat(f)}
+                            className={`flex-shrink-0 px-3 py-2 rounded-lg text-xs font-medium border transition-all ${format.label === f.label ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                        >
+                            {f.label}
+                        </button>
+                    ))}
                 </div>
-                <div>
-                   <div className="flex justify-between text-xs mb-1"><span>Độ sáng</span> <span>{brightness}%</span></div>
-                   <input type="range" min="0" max="200" value={brightness} onChange={(e) => setBrightness(parseInt(e.target.value))} className="w-full h-1.5 bg-gray-200 rounded-lg accent-blue-600" />
-                </div>
-                <div>
-                   <div className="flex justify-between text-xs mb-1"><span>Tương phản</span> <span>{contrast}%</span></div>
-                   <input type="range" min="0" max="200" value={contrast} onChange={(e) => setContrast(parseInt(e.target.value))} className="w-full h-1.5 bg-gray-200 rounded-lg accent-blue-600" />
-                </div>
-             </div>
-          </div>
+                
+                <label className="flex items-center justify-center w-full p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                    <div className="text-center">
+                        <Upload className="w-6 h-6 text-blue-500 mx-auto mb-1" />
+                        <span className="text-sm font-bold text-gray-600">Chọn ảnh nền</span>
+                    </div>
+                    <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                </label>
+            </div>
 
-          {/* Watermark */}
-          <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-             <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 border-b pb-2 flex items-center gap-2">
-                <Layers size={14}/> Watermark / Logo
-             </h3>
-             
-             <div className="flex gap-2 mb-4 text-xs">
-                <button onClick={() => setWmType('none')} className={`flex-1 py-1.5 rounded border ${wmType === 'none' ? 'bg-gray-800 text-white' : 'bg-white'}`}>Không</button>
-                <button onClick={() => setWmType('text')} className={`flex-1 py-1.5 rounded border ${wmType === 'text' ? 'bg-blue-600 text-white' : 'bg-white'}`}>Chữ (Text)</button>
-                <button onClick={() => setWmType('image')} className={`flex-1 py-1.5 rounded border ${wmType === 'image' ? 'bg-blue-600 text-white' : 'bg-white'}`}>Logo (Ảnh)</button>
-             </div>
-
-             {wmType === 'text' && (
-                <div className="space-y-3 animate-in fade-in">
-                   <input type="text" value={wmText} onChange={(e) => setWmText(e.target.value)} placeholder="Nhập nội dung..." className="w-full p-2 border rounded text-sm" />
-                   <div className="flex gap-2 items-center">
-                      <input type="color" value={wmColor} onChange={(e) => setWmColor(e.target.value)} className="h-8 w-8 p-0 border rounded cursor-pointer" />
-                      <span className="text-xs text-gray-500">Màu chữ</span>
-                   </div>
+            {/* 2. Image Adjustments */}
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                <h3 className="text-xs font-bold text-gray-500 uppercase mb-3 flex items-center gap-2">
+                    <Sliders size={14}/> Chỉnh ảnh nền
+                </h3>
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                        <ZoomIn size={14} className="text-gray-400" />
+                        <input type="range" min="0.1" max="3" step="0.1" value={imgPos.scale} onChange={e => setImgPos({...imgPos, scale: parseFloat(e.target.value)})} className="flex-1 h-1.5 bg-gray-200 rounded-lg accent-blue-600" />
+                    </div>
+                    <div>
+                        <div className="flex justify-between text-xs text-gray-500 mb-1"><span>Độ sáng</span> <span>{filters.brightness}%</span></div>
+                        <input type="range" min="0" max="200" value={filters.brightness} onChange={e => setFilters({...filters, brightness: parseInt(e.target.value)})} className="w-full h-1.5 bg-gray-200 rounded-lg accent-blue-600" />
+                    </div>
+                    <div>
+                        <div className="flex justify-between text-xs text-gray-500 mb-1"><span>Tương phản</span> <span>{filters.contrast}%</span></div>
+                        <input type="range" min="0" max="200" value={filters.contrast} onChange={e => setFilters({...filters, contrast: parseInt(e.target.value)})} className="w-full h-1.5 bg-gray-200 rounded-lg accent-blue-600" />
+                    </div>
                 </div>
-             )}
+            </div>
 
-             {wmType === 'image' && (
-                <div className="animate-in fade-in">
-                   {!wmImage ? (
-                      <label className="block p-3 border border-dashed rounded text-center cursor-pointer hover:bg-gray-50 text-xs text-gray-500">
-                         Click tải logo lên
-                         <input type="file" className="hidden" accept="image/*" onChange={handleWmImageUpload} />
-                      </label>
-                   ) : (
-                      <div className="flex items-center gap-2 bg-gray-50 p-2 rounded">
-                         <img src={wmImage.src} className="w-8 h-8 object-contain" alt="logo" />
-                         <button onClick={() => setWmImage(null)} className="text-xs text-red-500 underline ml-auto">Xóa</button>
-                      </div>
-                   )}
+            {/* 3. Watermark */}
+            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                <h3 className="text-xs font-bold text-gray-500 uppercase mb-3 flex items-center gap-2">
+                    <Layers size={14}/> Logo / Watermark
+                </h3>
+                
+                <div className="flex bg-gray-100 p-1 rounded-lg mb-4">
+                    {['none', 'text', 'image'].map(t => (
+                        <button 
+                            key={t}
+                            onClick={() => setWmType(t as any)}
+                            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${wmType === t ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'}`}
+                        >
+                            {t === 'none' ? 'Không' : t === 'text' ? 'Chữ' : 'Ảnh'}
+                        </button>
+                    ))}
                 </div>
-             )}
 
-             {wmType !== 'none' && (
-                <div className="space-y-3 mt-4 pt-4 border-t border-gray-100">
-                   <div>
-                      <div className="flex justify-between text-xs mb-1"><span>Kích thước</span> <span>{wmSize}%</span></div>
-                      <input type="range" min="5" max="100" value={wmSize} onChange={(e) => setWmSize(parseInt(e.target.value))} className="w-full h-1.5 bg-gray-200 rounded-lg accent-blue-600" />
-                   </div>
-                   <div>
-                      <div className="flex justify-between text-xs mb-1"><span>Độ mờ (Opacity)</span> <span>{wmOpacity}</span></div>
-                      <input type="range" min="0" max="1" step="0.1" value={wmOpacity} onChange={(e) => setWmOpacity(parseFloat(e.target.value))} className="w-full h-1.5 bg-gray-200 rounded-lg accent-blue-600" />
-                   </div>
-                   <div className="grid grid-cols-2 gap-4">
-                      <div>
-                         <label className="text-xs text-gray-500">Vị trí X (%)</label>
-                         <input type="number" min="0" max="100" value={wmX} onChange={(e) => setWmX(parseInt(e.target.value))} className="w-full p-1 border rounded text-xs" />
-                      </div>
-                      <div>
-                         <label className="text-xs text-gray-500">Vị trí Y (%)</label>
-                         <input type="number" min="0" max="100" value={wmY} onChange={(e) => setWmY(parseInt(e.target.value))} className="w-full p-1 border rounded text-xs" />
-                      </div>
-                   </div>
-                </div>
-             )}
-          </div>
+                {wmType === 'text' && (
+                    <div className="space-y-3">
+                        <input type="text" value={wmText} onChange={e => setWmText(e.target.value)} className="w-full p-2 border rounded text-sm" placeholder="Nhập nội dung..." />
+                        <div className="flex items-center gap-2">
+                            <input type="color" value={wmConfig.color} onChange={e => setWmConfig({...wmConfig, color: e.target.value})} className="w-8 h-8 p-0 border rounded cursor-pointer" />
+                            <input type="range" min="10" max="100" value={wmConfig.fontSize} onChange={e => setWmConfig({...wmConfig, fontSize: parseInt(e.target.value)})} className="flex-1 h-1.5 bg-gray-200 rounded-lg accent-blue-600" title="Cỡ chữ" />
+                        </div>
+                    </div>
+                )}
 
+                {wmType === 'image' && (
+                    <div className="space-y-3">
+                        <label className="block w-full py-2 px-3 border border-dashed border-gray-300 rounded text-center text-xs text-gray-500 hover:bg-gray-50 cursor-pointer">
+                            {wmImage ? 'Đổi logo khác' : 'Tải logo lên (PNG)'}
+                            <input type="file" className="hidden" accept="image/*" onChange={handleWmImageUpload} />
+                        </label>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500 w-12">Size:</span>
+                            <input type="range" min="0.05" max="1" step="0.05" value={wmConfig.scale} onChange={e => setWmConfig({...wmConfig, scale: parseFloat(e.target.value)})} className="flex-1 h-1.5 bg-gray-200 rounded-lg accent-blue-600" />
+                        </div>
+                    </div>
+                )}
+
+                {wmType !== 'none' && (
+                    <div className="mt-3 flex items-center gap-2">
+                        <span className="text-xs text-gray-500 w-12">Mờ:</span>
+                        <input type="range" min="0.1" max="1" step="0.1" value={wmConfig.opacity} onChange={e => setWmConfig({...wmConfig, opacity: parseFloat(e.target.value)})} className="flex-1 h-1.5 bg-gray-200 rounded-lg accent-blue-600" />
+                    </div>
+                )}
+            </div>
+
+            <div className="flex flex-col gap-3">
+                <button 
+                    onClick={handleDownload}
+                    className="w-full py-3 bg-gray-800 hover:bg-gray-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all"
+                >
+                    <Download size={18} /> Tải Về Máy
+                </button>
+                <button 
+                    onClick={handleConnectFB}
+                    className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all"
+                >
+                    <UploadCloud size={18} /> Đăng Lên Facebook
+                </button>
+            </div>
         </div>
 
-        {/* RIGHT COLUMN: PREVIEW & EXPORT */}
-        <div className="lg:col-span-8 flex flex-col h-full">
-           <div className="bg-gray-900 rounded-xl shadow-2xl overflow-hidden flex-1 flex items-center justify-center p-8 relative min-h-[500px] border border-gray-700">
-               <div className="relative shadow-2xl">
-                  <canvas ref={canvasRef} className="max-w-full max-h-[70vh] object-contain bg-white" />
-               </div>
-               
-               <div className="absolute top-4 right-4 flex gap-2">
-                  <span className="px-3 py-1 bg-black/50 text-white text-xs rounded-full backdrop-blur-sm border border-white/10">
-                     Preview: {format.w}x{format.h}px
-                  </span>
-               </div>
-           </div>
+        {/* RIGHT: INTERACTIVE CANVAS */}
+        <div className="lg:col-span-8 bg-gray-100 rounded-xl border border-gray-200 flex items-center justify-center relative overflow-hidden h-[calc(100vh-180px)]" ref={containerRef}>
+            
+            {/* Toolbar Overlay */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-sm text-xs font-medium text-gray-600 flex items-center gap-4 z-10">
+                <span className="flex items-center gap-1"><MousePointer2 size={12}/> Kéo thả để di chuyển</span>
+                <div className="w-px h-3 bg-gray-300"></div>
+                <button onClick={() => { setImgPos({x:0, y:0, scale:1}); setWmConfig({...wmConfig, x:0, y:0}); }} className="hover:text-blue-600 flex items-center gap-1">
+                    <RefreshCw size={12}/> Reset vị trí
+                </button>
+            </div>
 
-           <div className="mt-6 flex flex-col md:flex-row gap-4 justify-end">
-               <button 
-                  onClick={handleDownload}
-                  className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-gray-50 shadow-sm transition-all"
-               >
-                  <Download size={20} /> Tải Về Máy
-               </button>
-               <button 
-                  onClick={handleUploadToFB}
-                  className="px-8 py-3 bg-blue-600 text-white rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-blue-700 shadow-lg hover:-translate-y-1 transition-all"
-               >
-                  <UploadCloud size={20} /> Đăng Lên Facebook
-               </button>
-           </div>
-           
-           <p className="text-center text-xs text-gray-400 mt-4 italic">
-              * Tính năng "Đăng Lên Facebook" sẽ tải ảnh về máy và chuyển hướng bạn đến Facebook Creator Studio để hoàn tất bài đăng (do giới hạn bảo mật trình duyệt).
-           </p>
+            <canvas 
+                ref={canvasRef}
+                style={{ 
+                    width: `${format.w * canvasScale}px`, 
+                    height: `${format.h * canvasScale}px`,
+                    boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
+                    cursor: isDragging ? 'grabbing' : 'grab'
+                }}
+                className="bg-white"
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+            />
         </div>
 
       </div>
