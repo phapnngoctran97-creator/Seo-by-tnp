@@ -5,10 +5,16 @@ import KeywordChecker from './components/Tools/KeywordChecker';
 import SpeedAdvisor from './components/Tools/SpeedAdvisor';
 import SitemapGenerator from './components/Tools/SitemapGenerator';
 import QrGenerator from './components/Tools/QrGenerator';
-// New Tools
+// Text Tools
 import WordCounter from './components/Tools/WordCounter';
 import ImageCompressor from './components/Tools/ImageCompressor';
 import PlagiarismChecker from './components/Tools/PlagiarismChecker';
+// Graphic Tools
+import AvatarMaker from './components/Tools/AvatarMaker';
+import BgRemover from './components/Tools/BgRemover';
+import ImageResizer from './components/Tools/ImageResizer';
+import BannerCreator from './components/Tools/BannerCreator';
+import ImageFilter from './components/Tools/ImageFilter';
 
 import Dashboard from './components/Dashboard';
 import ApiKeyModal from './components/ApiKeyModal';
@@ -33,6 +39,13 @@ const App: React.FC = () => {
       case ToolType.WORD_COUNTER: return <WordCounter />;
       case ToolType.IMG_COMPRESS: return <ImageCompressor />;
       case ToolType.PLAGIARISM_CHECK: return <PlagiarismChecker />;
+
+      // Graphic Tools
+      case ToolType.AVATAR_MAKER: return <AvatarMaker />;
+      case ToolType.BG_REMOVER: return <BgRemover />;
+      case ToolType.IMG_RESIZER: return <ImageResizer />;
+      case ToolType.BANNER_GEN: return <BannerCreator />;
+      case ToolType.IMG_FILTER: return <ImageFilter />;
       
       default: return <Dashboard onNavigate={setActiveTool} />;
     }

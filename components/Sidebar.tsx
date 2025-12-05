@@ -3,7 +3,7 @@ import { NavGroup, ToolType } from '../types';
 import { 
   LayoutDashboard, Sparkles, Search, Zap, Network, QrCode, 
   Settings, Key, ChevronDown, ChevronRight, FileText, 
-  Image as ImageIcon, BookOpen 
+  Image as ImageIcon, BookOpen, Crop, Eraser, Move, Palette, Aperture
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -14,7 +14,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenSettings }) => {
-  const [expandedGroup, setExpandedGroup] = useState<string | null>('SEO Tools');
+  const [expandedGroup, setExpandedGroup] = useState<string | null>('Đồ họa & Hình ảnh');
 
   const navGroups: NavGroup[] = [
     {
@@ -33,6 +33,16 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenS
         { id: ToolType.IMG_COMPRESS, label: 'Nén Ảnh', icon: ImageIcon, description: 'Giảm dung lượng' },
         { id: ToolType.WORD_COUNTER, label: 'Đếm Từ & Ký Tự', icon: FileText, description: 'Thống kê văn bản' },
         { id: ToolType.PLAGIARISM_CHECK, label: 'Kiểm Tra Đạo Văn', icon: BookOpen, description: 'Check trùng lặp' },
+      ]
+    },
+    {
+      title: 'Đồ họa & Hình ảnh',
+      items: [
+        { id: ToolType.AVATAR_MAKER, label: 'Tạo Avatar', icon: Crop, description: 'Cắt ảnh đại diện' },
+        { id: ToolType.BG_REMOVER, label: 'Xóa Nền Đơn Giản', icon: Eraser, description: 'Tách nền màu' },
+        { id: ToolType.IMG_RESIZER, label: 'Resize Ảnh', icon: Move, description: 'Đổi kích thước' },
+        { id: ToolType.BANNER_GEN, label: 'Tạo Banner', icon: Palette, description: 'FB/Youtube Cover' },
+        { id: ToolType.IMG_FILTER, label: 'Bộ Lọc Màu', icon: Aperture, description: 'Vintage/B&W' },
       ]
     }
   ];
