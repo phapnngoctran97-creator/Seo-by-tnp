@@ -7,6 +7,7 @@ export enum ToolType {
   SITEMAP_GEN = 'SITEMAP_GEN',
   QR_GEN = 'QR_GEN',
   OUTLINE_GEN = 'OUTLINE_GEN',
+  SEO_GRADER = 'SEO_GRADER',
   
   // Text Tools
   WORD_COUNTER = 'WORD_COUNTER',

@@ -177,3 +177,82 @@ export const generateSeoOutline = async (
     throw error;
   }
 };
+
+export interface SeoScoreResult {
+  score: number;
+  goodPoints: string[];
+  warnings: string[];
+  criticalErrors: string[];
+  suggestions: string[];
+}
+
+export const gradeSeoContent = async (
+  htmlContent: string,
+  keyword: string,
+  url?: string
+): Promise<SeoScoreResult> => {
+  const ai = getAiClient();
+
+  // Strip large base64 images to save tokens, but keep img tags for analysis
+  const cleanedContent = htmlContent.replace(/<img[^>]*src="data:image\/[^;]+;base64,[^"]+"[^>]*>/g, '[IMAGE_PLACEHOLDER]');
+  
+  const prompt = `
+    Bạn là một công cụ chấm điểm SEO Content nghiêm ngặt giống như Rank Math hoặc Yoast SEO.
+    
+    Nhiệm vụ: Chấm điểm bài viết dưới đây dựa trên Từ Khóa Tập Trung (Focus Keyword).
+    
+    Thông tin đầu vào:
+    - Từ khóa tập trung: "${keyword}"
+    - URL (nếu có): "${url || 'Không có'}"
+    - Nội dung bài viết (HTML thô): 
+    """
+    ${cleanedContent.substring(0, 15000)} 
+    """
+    (Lưu ý: Nội dung đã được cắt ngắn nếu quá dài, hãy phân tích dựa trên những gì nhận được).
+
+    Hãy phân tích các tiêu chí sau:
+    1. Từ khóa trong thẻ H1, H2, H3?
+    2. Mật độ từ khóa (Keyword Density) có tự nhiên không (0.5% - 2.5%)?
+    3. Độ dài bài viết?
+    4. Có hình ảnh không? (Placeholder [IMAGE_PLACEHOLDER] tính là có ảnh).
+    5. Khả năng đọc (câu ngắn, chia đoạn).
+    6. Từ khóa ở đầu bài viết?
+
+    Trả về kết quả dưới dạng JSON theo schema sau:
+    {
+      "score": number (0-100),
+      "goodPoints": ["string"],
+      "warnings": ["string"],
+      "criticalErrors": ["string"],
+      "suggestions": ["string"]
+    }
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            score: { type: Type.INTEGER },
+            goodPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
+            warnings: { type: Type.ARRAY, items: { type: Type.STRING } },
+            criticalErrors: { type: Type.ARRAY, items: { type: Type.STRING } },
+            suggestions: { type: Type.ARRAY, items: { type: Type.STRING } }
+          },
+          required: ["score", "goodPoints", "warnings", "criticalErrors", "suggestions"]
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) throw new Error("Empty response");
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Gemini SEO Grader Error:", error);
+    throw error;
+  }
+};

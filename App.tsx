@@ -6,6 +6,7 @@ import SpeedAdvisor from './components/Tools/SpeedAdvisor';
 import SitemapGenerator from './components/Tools/SitemapGenerator';
 import QrGenerator from './components/Tools/QrGenerator';
 import OutlineGenerator from './components/Tools/OutlineGenerator';
+import SeoGrader from './components/Tools/SeoGrader';
 // Text Tools
 import WordCounter from './components/Tools/WordCounter';
 import ImageCompressor from './components/Tools/ImageCompressor';
@@ -30,6 +31,7 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (activeTool) {
       // SEO Tools
+      case ToolType.SEO_GRADER: return <SeoGrader />;
       case ToolType.META_GEN: return <MetaGenerator />;
       case ToolType.KEYWORD_CHECK: return <KeywordChecker />;
       case ToolType.SPEED_ADVISOR: return <SpeedAdvisor />;

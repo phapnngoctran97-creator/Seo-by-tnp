@@ -4,7 +4,7 @@ import {
   Sparkles, Search, Zap, Network, QrCode, ArrowRight, 
   FileText, Image as ImageIcon, BookOpen, X,
   Crop, Eraser, Move, Palette, Aperture, ImagePlus, List, Type,
-  Clock, Timer, Users, Globe, Activity
+  Clock, Timer, Users, Globe, Activity, ClipboardCheck
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -91,6 +91,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   };
 
   const seoTools: ToolItem[] = [
+    { id: ToolType.SEO_GRADER, title: 'Chấm Điểm SEO', desc: 'Chuẩn RankMath/Yoast.', icon: ClipboardCheck, color: 'text-blue-600', bg: 'bg-blue-50' },
     { id: ToolType.META_GEN, title: 'Tạo Meta Description', desc: 'AI tạo mô tả chuẩn SEO.', icon: Sparkles, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { id: ToolType.OUTLINE_GEN, title: 'Tạo Dàn Ý SEO', desc: 'Lập dàn ý & Gợi ý từ khóa.', icon: List, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     { id: ToolType.KEYWORD_CHECK, title: 'Check Trùng Từ Khóa', desc: 'Phân tích mật độ từ khóa.', icon: Search, color: 'text-orange-600', bg: 'bg-orange-50' },
@@ -117,7 +118,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     {
       id: 'seo',
       title: 'Công Cụ SEO',
-      description: 'Tối ưu hóa công cụ tìm kiếm, tạo Sitemap, QR và kiểm tra từ khóa.',
+      description: 'Tối ưu hóa công cụ tìm kiếm, chấm điểm nội dung, tạo Sitemap.',
       icon: Search,
       gradient: 'from-indigo-500 to-purple-600',
       tools: seoTools

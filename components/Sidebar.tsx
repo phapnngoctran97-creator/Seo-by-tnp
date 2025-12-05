@@ -3,7 +3,8 @@ import { NavGroup, ToolType } from '../types';
 import { 
   LayoutDashboard, Sparkles, Search, Zap, Network, QrCode, 
   Settings, Key, ChevronDown, ChevronRight, FileText, 
-  Image as ImageIcon, BookOpen, Crop, Eraser, Move, Palette, Aperture, List
+  Image as ImageIcon, BookOpen, Crop, Eraser, Move, Palette, Aperture, List,
+  ClipboardCheck
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -20,6 +21,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenS
     {
       title: 'SEO Tools',
       items: [
+        { id: ToolType.SEO_GRADER, label: 'Chấm Điểm SEO', icon: ClipboardCheck, description: 'Yoast/RankMath Check' },
         { id: ToolType.META_GEN, label: 'Tạo Meta SEO', icon: Sparkles, description: 'Tối ưu Description' },
         { id: ToolType.OUTLINE_GEN, label: 'Tạo Dàn Ý SEO', icon: List, description: 'Outline & Keyword' },
         { id: ToolType.KEYWORD_CHECK, label: 'Check Từ Khóa', icon: Search, description: 'Kiểm tra mật độ' },
