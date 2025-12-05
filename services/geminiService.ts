@@ -1,13 +1,16 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 const getAiClient = () => {
-  // Ưu tiên lấy key từ localStorage do người dùng nhập
+  // Logic: 
+  // 1. Hệ thống hỗ trợ nhiều loại Key (Gemini, OpenAI, DeepSeek) lưu trong localStorage.
+  // 2. Service này (geminiService) CHỈ chịu trách nhiệm làm việc với Google Gemini.
+  // 3. Vì vậy, nó chỉ lấy 'gemini_api_key'.
+  
   const localKey = typeof window !== 'undefined' ? localStorage.getItem('gemini_api_key') : null;
-  // Nếu không có local key, dùng key từ biến môi trường (nếu có)
   const apiKey = localKey || process.env.API_KEY;
 
   if (!apiKey) {
-    throw new Error("API Key chưa được cấu hình. Vui lòng nhấn vào nút 'Cài đặt API' ở thanh menu bên trái để nhập Key.");
+    throw new Error("Vui lòng nhập Gemini API Key trong phần 'Cài đặt API' để sử dụng tính năng AI này.");
   }
   return new GoogleGenAI({ apiKey });
 };

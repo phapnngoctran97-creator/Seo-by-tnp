@@ -117,8 +117,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenS
              <Key className="w-4 h-4" />
           </div>
           <div className="text-left flex-1">
-            <p className="text-sm font-medium">Cài đặt API</p>
-            <p className="text-[10px] text-slate-500">Nhập key của bạn</p>
+            <p className="text-sm font-medium">Quản lý API Keys</p>
+            <p className="text-[10px] text-slate-500">Gemini, OpenAI...</p>
           </div>
           <Settings className="w-4 h-4 text-slate-500" />
         </button>
