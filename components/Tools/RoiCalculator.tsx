@@ -186,7 +186,7 @@ const RoiCalculator: React.FC = () => {
                            <ul className="space-y-2">
                                {margin < 15 && <li className="text-red-600 flex gap-2"><ArrowRight size={16} /> Biên lợi nhuận mỏng ({margin.toFixed(1)}%). Cần giảm COGS hoặc tăng giá bán.</li>}
                                {roas < breakEvenRoas && <li className="text-red-600 flex gap-2"><ArrowRight size={16} /> Đang lỗ quảng cáo. ROAS hiện tại ({roas.toFixed(2)}) thấp hơn điểm hòa vốn ({breakEvenRoas.toFixed(2)}).</li>}
-                               {adsCost && (Number(adsCost) / totalRev) > 0.4 && <li className="text-orange-600 flex gap-2"><ArrowRight size={16} /> Chi phí Marketing chiếm > 40% doanh thu. Khá rủi ro.</li>}
+                               {adsCost && (Number(adsCost) / totalRev) > 0.4 && <li className="text-orange-600 flex gap-2"><ArrowRight size={16} /> Chi phí Marketing chiếm &gt; 40% doanh thu. Khá rủi ro.</li>}
                                {margin >= 20 && roas > breakEvenRoas && <li className="text-green-600 flex gap-2"><ArrowRight size={16} /> Mô hình kinh doanh đang khỏe mạnh. Có thể scale ngân sách.</li>}
                            </ul>
                       </div>
