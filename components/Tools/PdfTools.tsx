@@ -1,73 +1,99 @@
-import React from 'react';
-import { ToolType } from '../types';
-import { Sparkles, Search, Zap, Network, QrCode, ArrowRight, FileText, Image as ImageIcon, FileType, BookOpen } from 'lucide-react';
+import React, { useState } from 'react';
+import { FileType, ArrowRightLeft, Merge, FileText, Download } from 'lucide-react';
 
-interface DashboardProps {
-  onNavigate: (tool: ToolType) => void;
-}
+const PdfTools: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'convert' | 'merge'>('convert');
+  
+  // Dummy states for UI demo
+  const [files, setFiles] = useState<File[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
-  const seoTools = [
-    { id: ToolType.META_GEN, title: 'Tạo Meta Description', desc: 'AI tạo mô tả chuẩn SEO.', icon: Sparkles, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-    { id: ToolType.KEYWORD_CHECK, title: 'Check Trùng Từ Khóa', desc: 'Phân tích mật độ từ khóa.', icon: Search, color: 'text-orange-600', bg: 'bg-orange-50' },
-    { id: ToolType.SPEED_ADVISOR, title: 'Tối Ưu Tốc Độ', desc: 'Tư vấn Core Web Vitals.', icon: Zap, color: 'text-yellow-600', bg: 'bg-yellow-50' },
-    { id: ToolType.SITEMAP_GEN, title: 'Tạo Sitemap XML', desc: 'Tạo file sitemap cho Google.', icon: Network, color: 'text-cyan-600', bg: 'bg-cyan-50' },
-    { id: ToolType.QR_GEN, title: 'Tạo QR Code', desc: 'Mã QR cho Website/WiFi.', icon: QrCode, color: 'text-purple-600', bg: 'bg-purple-50' },
-  ];
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setFiles(Array.from(e.target.files));
+    }
+  };
 
-  const textTools = [
-    { id: ToolType.PDF_TOOLS, title: 'Công cụ PDF', desc: 'Chuyển đổi & Ghép file PDF.', icon: FileType, color: 'text-red-600', bg: 'bg-red-50' },
-    { id: ToolType.IMG_COMPRESS, title: 'Nén Ảnh', desc: 'Giảm dung lượng JPG/PNG.', icon: ImageIcon, color: 'text-pink-600', bg: 'bg-pink-50' },
-    { id: ToolType.WORD_COUNTER, title: 'Đếm Từ & Ký Tự', desc: 'Thống kê chi tiết văn bản.', icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { id: ToolType.PLAGIARISM_CHECK, title: 'Kiểm Tra Đạo Văn', desc: 'Phân tích tính nguyên bản AI.', icon: BookOpen, color: 'text-green-600', bg: 'bg-green-50' },
-  ];
-
-  const renderCard = (card: any) => {
-    const Icon = card.icon;
-    return (
-        <button
-          key={card.id}
-          onClick={() => onNavigate(card.id)}
-          className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-lg hover:border-indigo-100 transition-all text-left group flex flex-col h-full"
-        >
-          <div className={`${card.bg} w-10 h-10 rounded-lg flex items-center justify-center mb-3 transition-transform group-hover:scale-110`}>
-            <Icon className={`${card.color} w-5 h-5`} />
-          </div>
-          <h3 className="text-base font-semibold text-gray-800 mb-1 group-hover:text-indigo-600 transition-colors">{card.title}</h3>
-          <p className="text-sm text-gray-500 mb-4 flex-1">{card.desc}</p>
-          <div className="flex items-center text-xs font-medium text-indigo-500 gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-auto">
-            Dùng ngay <ArrowRight className="w-3 h-3" />
-          </div>
-        </button>
-    );
+  const handleProcess = () => {
+    if (files.length === 0) return;
+    setIsProcessing(true);
+    // Simulate processing
+    setTimeout(() => {
+        setIsProcessing(false);
+        alert("Tính năng này đang được phát triển (Cần Server-side processing). Tuy nhiên, bạn có thể sử dụng tính năng 'In sang PDF' của trình duyệt cho văn bản.");
+    }, 2000);
   };
 
   return (
-    <div className="max-w-6xl mx-auto pb-10">
-      <div className="mb-8 text-center">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">Chào mừng trở lại!</h2>
-        <p className="text-gray-600">Bộ công cụ SEO & Xử lý văn bản tất cả trong một.</p>
+    <div className="max-w-4xl mx-auto">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+          <FileType className="text-red-500" /> Công Cụ PDF
+        </h2>
+        <p className="text-gray-600 mt-2">Chuyển đổi và xử lý file PDF đơn giản.</p>
       </div>
 
-      <div className="mb-8">
-        <h3 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-indigo-500" /> Công Cụ SEO
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-5">
-            {seoTools.map(renderCard)}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="flex border-b border-gray-200">
+            <button 
+                onClick={() => setActiveTab('convert')}
+                className={`flex-1 py-4 text-sm font-medium flex justify-center items-center gap-2 transition-colors ${activeTab === 'convert' ? 'bg-red-50 text-red-600 border-b-2 border-red-600' : 'text-gray-500 hover:bg-gray-50'}`}
+            >
+                <ArrowRightLeft size={18} /> Word ↔ PDF
+            </button>
+            <button 
+                onClick={() => setActiveTab('merge')}
+                className={`flex-1 py-4 text-sm font-medium flex justify-center items-center gap-2 transition-colors ${activeTab === 'merge' ? 'bg-red-50 text-red-600 border-b-2 border-red-600' : 'text-gray-500 hover:bg-gray-50'}`}
+            >
+                <Merge size={18} /> Ghép File PDF
+            </button>
         </div>
-      </div>
 
-      <div>
-        <h3 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-blue-500" /> Công Cụ Văn Bản
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-5">
-            {textTools.map(renderCard)}
+        <div className="p-8">
+            <div className="border-2 border-dashed border-gray-300 rounded-xl p-12 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors mb-6 relative">
+                <input 
+                    type="file" 
+                    multiple={activeTab === 'merge'} 
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    onChange={handleFileChange}
+                    accept={activeTab === 'convert' ? ".doc,.docx,.pdf" : ".pdf"}
+                />
+                <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4">
+                    {activeTab === 'convert' ? <FileText className="w-8 h-8" /> : <Merge className="w-8 h-8" />}
+                </div>
+                {files.length > 0 ? (
+                    <div className="text-center">
+                        <p className="font-medium text-gray-800">{files.length} file đã chọn</p>
+                        <p className="text-sm text-gray-500">{files.map(f => f.name).join(', ')}</p>
+                    </div>
+                ) : (
+                    <div className="text-center">
+                        <p className="text-lg font-medium text-gray-700">
+                            {activeTab === 'convert' ? 'Chọn file Word hoặc PDF' : 'Chọn các file PDF cần ghép'}
+                        </p>
+                        <p className="text-sm text-gray-400 mt-1">Kéo thả hoặc click để tải lên</p>
+                    </div>
+                )}
+            </div>
+
+            <button 
+                onClick={handleProcess}
+                disabled={files.length === 0 || isProcessing}
+                className={`w-full py-3 rounded-lg font-medium text-white transition-all flex justify-center items-center gap-2 ${
+                    files.length === 0 || isProcessing ? 'bg-gray-300 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700 shadow-md'
+                }`}
+            >
+                {isProcessing ? 'Đang xử lý...' : (activeTab === 'convert' ? 'Chuyển Đổi' : 'Ghép File')}
+            </button>
+
+            <div className="mt-6 bg-yellow-50 p-4 rounded-lg border border-yellow-100 text-sm text-yellow-800 flex gap-2 items-start">
+                 <span className="font-bold">Lưu ý:</span> 
+                 Đây là phiên bản Demo giao diện. Việc xử lý file PDF/Word phức tạp yêu cầu Server Backend để đảm bảo font chữ và định dạng chính xác.
+            </div>
         </div>
       </div>
     </div>
   );
 };
 
-export default Dashboard;
+export default PdfTools;
