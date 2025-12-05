@@ -30,6 +30,8 @@ import MarketingPlanSlides from './components/Tools/MarketingPlanSlides';
 import UtmBuilder from './components/Tools/UtmBuilder';
 import UrlShortener from './components/Tools/UrlShortener';
 import RoiCalculator from './components/Tools/RoiCalculator';
+import CostPerResult from './components/Tools/CostPerResult';
+import MiniAnalyticsDash from './components/Tools/MiniAnalyticsDash';
 
 import Dashboard from './components/Dashboard';
 import ApiKeyModal from './components/ApiKeyModal';
@@ -77,6 +79,8 @@ const App: React.FC = () => {
       case ToolType.UTM_BUILDER: return <UtmBuilder />;
       case ToolType.URL_SHORTENER: return <UrlShortener />;
       case ToolType.ROI_CALCULATOR: return <RoiCalculator />;
+      case ToolType.COST_PER_RESULT: return <CostPerResult />;
+      case ToolType.MINI_DASHBOARD: return <MiniAnalyticsDash />;
 
       default: return <Dashboard onNavigate={setActiveTool} />;
     }

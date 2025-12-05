@@ -34,7 +34,9 @@ export enum ToolType {
   // Analytics Tools
   UTM_BUILDER = 'UTM_BUILDER',
   URL_SHORTENER = 'URL_SHORTENER',
-  ROI_CALCULATOR = 'ROI_CALCULATOR'
+  ROI_CALCULATOR = 'ROI_CALCULATOR',
+  COST_PER_RESULT = 'COST_PER_RESULT',
+  MINI_DASHBOARD = 'MINI_DASHBOARD'
 }
 
 export interface KeywordData {

@@ -7,7 +7,7 @@ import {
   Crop, Eraser, Move, Palette, Aperture, ImagePlus, List, Type,
   Clock, Timer, Users, Globe, Activity, ClipboardCheck,
   Megaphone, Target, Calculator, Layout, PieChart, Presentation, Pipette,
-  BarChart3, Link, TrendingUp
+  BarChart3, Link, TrendingUp, DollarSign
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -104,7 +104,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   const analyticsTools: ToolItem[] = [
     { id: ToolType.ROI_CALCULATOR, title: 'Tính ROI & P&L', desc: 'Lãi lỗ thực tế & Đa kênh.', icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50' },
-    { id: ToolType.UTM_BUILDER, title: 'UTM Builder Pro', desc: 'Tạo link tracking chuẩn.', icon: Link, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { id: ToolType.COST_PER_RESULT, title: 'So Sánh CPR', desc: 'Cost Per Result đa kênh.', icon: DollarSign, color: 'text-cyan-600', bg: 'bg-cyan-50' },
+    { id: ToolType.MINI_DASHBOARD, title: 'Báo Cáo Nhanh', desc: 'Dashboard & Target.', icon: Activity, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { id: ToolType.UTM_BUILDER, title: 'UTM Builder', desc: 'Tạo UTM + Rút gọn + Excel.', icon: Link, color: 'text-blue-600', bg: 'bg-blue-50' },
     { id: ToolType.URL_SHORTENER, title: 'Rút Gọn Link', desc: 'Tạo short-link miễn phí.', icon: Link, color: 'text-indigo-600', bg: 'bg-indigo-50' },
   ];
 

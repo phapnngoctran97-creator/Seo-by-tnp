@@ -6,7 +6,7 @@ import {
   Settings, Key, ChevronDown, ChevronRight, FileText, 
   Image as ImageIcon, BookOpen, Crop, Eraser, Move, Palette, Aperture, List,
   ClipboardCheck, Megaphone, Target, Calculator, Layout, PieChart, Presentation,
-  Pipette, Link, BarChart3, TrendingUp
+  Pipette, Link, BarChart3, TrendingUp, DollarSign, Activity
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -17,7 +17,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenSettings }) => {
-  const [expandedGroup, setExpandedGroup] = useState<string | null>('Quảng Cáo (Ads)');
+  const [expandedGroup, setExpandedGroup] = useState<string | null>('Phân Tích Số Liệu');
 
   const navGroups: NavGroup[] = [
     {
@@ -37,6 +37,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenS
         { id: ToolType.UTM_BUILDER, label: 'UTM Builder', icon: Link, description: 'Tạo link tracking' },
         { id: ToolType.URL_SHORTENER, label: 'Rút Gọn Link', icon: Link, description: 'Shorten URL' },
         { id: ToolType.ROI_CALCULATOR, label: 'Tính ROI & P&L', icon: TrendingUp, description: 'Lãi lỗ thực tế' },
+        { id: ToolType.COST_PER_RESULT, label: 'So Sánh CPR', icon: DollarSign, description: 'So sánh hiệu quả kênh' },
+        { id: ToolType.MINI_DASHBOARD, label: 'Báo Cáo Nhanh', icon: Activity, description: 'Dashboard mini' },
       ]
     },
     {
