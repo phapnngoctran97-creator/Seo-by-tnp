@@ -2,7 +2,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Facebook, Upload, Download, RefreshCw, Type, Image as ImageIcon, 
-  Monitor, Layers, Sliders, UploadCloud, Move, ZoomIn, MousePointer2, Check
+  Monitor, Layers, Sliders, UploadCloud, Move, ZoomIn, MousePointer2, 
+  Check, Grid3X3, Maximize, RotateCw
 } from 'lucide-react';
 
 interface Format {
@@ -32,14 +33,19 @@ const FacebookCreator: React.FC = () => {
 
   // Watermark State
   const [wmType, setWmType] = useState<'none' | 'text' | 'image'>('none');
-  const [wmText, setWmText] = useState('Your Brand');
+  const [wmMode, setWmMode] = useState<'single' | 'tiled'>('single'); // Single or Pattern
+  const [wmText, setWmText] = useState('Bản quyền thuộc về tôi');
   const [wmImage, setWmImage] = useState<HTMLImageElement | null>(null);
+  
   const [wmConfig, setWmConfig] = useState({ 
-    x: 0, y: 0, // Coordinates relative to center
-    scale: 1, 
-    opacity: 0.8, 
+    x: 0, y: 0, // Coordinates relative to center (for Single mode)
+    scale: 1,   // Size multiplier
+    opacity: 0.5, 
     color: '#ffffff',
-    fontSize: 40
+    fontSize: 40,
+    rotation: 0, // Angle in degrees
+    density: 3,  // For tiled mode (3x3, 4x4...)
+    stagger: true // So le for tiled mode
   });
 
   // Interaction State
@@ -79,7 +85,7 @@ const FacebookCreator: React.FC = () => {
         img.onload = () => {
           setWmImage(img);
           setWmType('image');
-          setWmConfig(prev => ({ ...prev, scale: 0.2 })); // Default 20% size
+          setWmConfig(prev => ({ ...prev, scale: 0.2, opacity: 0.8 })); // Reset defaults
         };
       };
       reader.readAsDataURL(file);
@@ -123,43 +129,78 @@ const FacebookCreator: React.FC = () => {
     if (wmType !== 'none') {
       ctx.save();
       ctx.globalAlpha = wmConfig.opacity;
-      ctx.translate(centerX + wmConfig.x, centerY + wmConfig.y);
-      
-      // Draw selection border if dragging watermark
-      if (dragTarget === 'wm') {
-          ctx.strokeStyle = '#3b82f6';
-          ctx.lineWidth = 2;
-          ctx.setLineDash([5, 5]);
+
+      // Helper function to draw a single watermark item at (0,0)
+      const drawItem = () => {
+          // Apply individual rotation
+          ctx.rotate((wmConfig.rotation * Math.PI) / 180);
+
+          if (wmType === 'text') {
+            ctx.fillStyle = wmConfig.color;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = `bold ${wmConfig.fontSize * wmConfig.scale}px Inter, sans-serif`;
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.shadowBlur = 4;
+            ctx.fillText(wmText, 0, 0);
+            
+            // Draw Selection Box (Only if single mode and dragging)
+            if (wmMode === 'single' && dragTarget === 'wm') {
+                const metrics = ctx.measureText(wmText);
+                const h = wmConfig.fontSize * wmConfig.scale; 
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#3b82f6';
+                ctx.setLineDash([5, 5]);
+                ctx.strokeRect(-metrics.width/2 - 10, -h/2 - 10, metrics.width + 20, h + 20);
+            }
+
+          } else if (wmType === 'image' && wmImage) {
+            const targetW = format.w * wmConfig.scale;
+            const ratio = wmImage.width / wmImage.height;
+            const targetH = targetW / ratio;
+            
+            ctx.drawImage(wmImage, -targetW/2, -targetH/2, targetW, targetH);
+
+            if (wmMode === 'single' && dragTarget === 'wm') {
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#3b82f6';
+                ctx.setLineDash([5, 5]);
+                ctx.strokeRect(-targetW/2 - 5, -targetH/2 - 5, targetW + 10, targetH + 10);
+            }
+          }
+      };
+
+      if (wmMode === 'single') {
+          // SINGLE MODE: Draw at specific X, Y
+          ctx.translate(centerX + wmConfig.x, centerY + wmConfig.y);
+          drawItem();
+      } else {
+          // TILED MODE: Draw grid
+          const density = Math.max(1, wmConfig.density);
+          const stepX = canvas.width / density;
+          const stepY = canvas.height / density;
+
+          // Extend loop to cover rotation edges if needed, but keeping simple for now
+          // Shift start to ensure coverage when rotated or staggered
+          for (let row = -1; row <= density + 1; row++) {
+              for (let col = -1; col <= density + 1; col++) {
+                  ctx.save();
+                  
+                  let x = (col * stepX) + (stepX / 2); // Center alignment
+                  let y = (row * stepY) + (stepY / 2);
+                  
+                  // Stagger effect (so le)
+                  if (wmConfig.stagger && row % 2 !== 0) {
+                      x += stepX / 2;
+                  }
+
+                  ctx.translate(x, y);
+                  drawItem();
+                  ctx.restore();
+              }
+          }
       }
 
-      if (wmType === 'text') {
-        ctx.fillStyle = wmConfig.color;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.font = `bold ${wmConfig.fontSize * wmConfig.scale}px Inter, sans-serif`;
-        ctx.shadowColor = 'rgba(0,0,0,0.5)';
-        ctx.shadowBlur = 4;
-        
-        // Measure text for hit detection box (approx)
-        if (dragTarget === 'wm') {
-            const metrics = ctx.measureText(wmText);
-            const h = wmConfig.fontSize * wmConfig.scale; 
-            ctx.strokeRect(-metrics.width/2 - 10, -h/2 - 10, metrics.width + 20, h + 20);
-        }
-        
-        ctx.fillText(wmText, 0, 0);
-
-      } else if (wmType === 'image' && wmImage) {
-        const targetW = format.w * wmConfig.scale;
-        const ratio = wmImage.width / wmImage.height;
-        const targetH = targetW / ratio;
-        
-        if (dragTarget === 'wm') {
-            ctx.strokeRect(-targetW/2 - 5, -targetH/2 - 5, targetW + 10, targetH + 10);
-        }
-
-        ctx.drawImage(wmImage, -targetW/2, -targetH/2, targetW, targetH);
-      }
       ctx.restore();
     }
   };
@@ -167,7 +208,7 @@ const FacebookCreator: React.FC = () => {
   // Trigger draw on any state change
   useEffect(() => {
     draw();
-  }, [format, image, imgPos, filters, wmType, wmText, wmImage, wmConfig, dragTarget]);
+  }, [format, image, imgPos, filters, wmType, wmText, wmImage, wmConfig, dragTarget, wmMode]);
 
   // Fit canvas to screen
   useEffect(() => {
@@ -198,8 +239,10 @@ const FacebookCreator: React.FC = () => {
     };
   };
 
+  // Hit detection only relevant for Single mode dragging
   const isHitWatermark = (cx: number, cy: number) => {
-      if (wmType === 'none') return false;
+      if (wmType === 'none' || wmMode === 'tiled') return false; // Disable dragging in tiled mode
+      
       const centerX = format.w / 2;
       const centerY = format.h / 2;
       const wx = centerX + wmConfig.x;
@@ -272,7 +315,7 @@ const FacebookCreator: React.FC = () => {
         <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
           <Facebook className="text-blue-600" /> Facebook Creator Studio (Pro)
         </h2>
-        <p className="text-gray-600 mt-2">Thiết kế ảnh tương tác Live: Kéo thả logo, chỉnh màu và xuất bản.</p>
+        <p className="text-gray-600 mt-2">Thiết kế ảnh tương tác Live: Kéo thả logo, chỉnh màu và đóng dấu bản quyền.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -330,6 +373,7 @@ const FacebookCreator: React.FC = () => {
                     <Layers size={14}/> Logo / Watermark
                 </h3>
                 
+                {/* Type Selection */}
                 <div className="flex bg-gray-100 p-1 rounded-lg mb-4">
                     {['none', 'text', 'image'].map(t => (
                         <button 
@@ -342,33 +386,75 @@ const FacebookCreator: React.FC = () => {
                     ))}
                 </div>
 
-                {wmType === 'text' && (
-                    <div className="space-y-3">
-                        <input type="text" value={wmText} onChange={e => setWmText(e.target.value)} className="w-full p-2 border rounded text-sm" placeholder="Nhập nội dung..." />
-                        <div className="flex items-center gap-2">
-                            <input type="color" value={wmConfig.color} onChange={e => setWmConfig({...wmConfig, color: e.target.value})} className="w-8 h-8 p-0 border rounded cursor-pointer" />
-                            <input type="range" min="10" max="100" value={wmConfig.fontSize} onChange={e => setWmConfig({...wmConfig, fontSize: parseInt(e.target.value)})} className="flex-1 h-1.5 bg-gray-200 rounded-lg accent-blue-600" title="Cỡ chữ" />
-                        </div>
-                    </div>
-                )}
-
-                {wmType === 'image' && (
-                    <div className="space-y-3">
-                        <label className="block w-full py-2 px-3 border border-dashed border-gray-300 rounded text-center text-xs text-gray-500 hover:bg-gray-50 cursor-pointer">
-                            {wmImage ? 'Đổi logo khác' : 'Tải logo lên (PNG)'}
-                            <input type="file" className="hidden" accept="image/*" onChange={handleWmImageUpload} />
-                        </label>
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500 w-12">Size:</span>
-                            <input type="range" min="0.05" max="1" step="0.05" value={wmConfig.scale} onChange={e => setWmConfig({...wmConfig, scale: parseFloat(e.target.value)})} className="flex-1 h-1.5 bg-gray-200 rounded-lg accent-blue-600" />
-                        </div>
-                    </div>
-                )}
-
                 {wmType !== 'none' && (
-                    <div className="mt-3 flex items-center gap-2">
-                        <span className="text-xs text-gray-500 w-12">Mờ:</span>
-                        <input type="range" min="0.1" max="1" step="0.1" value={wmConfig.opacity} onChange={e => setWmConfig({...wmConfig, opacity: parseFloat(e.target.value)})} className="flex-1 h-1.5 bg-gray-200 rounded-lg accent-blue-600" />
+                    <div className="space-y-4 animate-in fade-in">
+                        
+                        {/* Mode Selection: Single vs Tiled */}
+                        <div className="flex items-center gap-4 text-sm mb-2">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="wmMode" checked={wmMode === 'single'} onChange={() => setWmMode('single')} className="text-blue-600 focus:ring-blue-500" />
+                                <span>Đơn (1 cái)</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="wmMode" checked={wmMode === 'tiled'} onChange={() => setWmMode('tiled')} className="text-blue-600 focus:ring-blue-500" />
+                                <span>Lưới (Phủ kín)</span>
+                            </label>
+                        </div>
+
+                        {/* Content Input */}
+                        {wmType === 'text' && (
+                            <div className="space-y-3">
+                                <input type="text" value={wmText} onChange={e => setWmText(e.target.value)} className="w-full p-2 border rounded text-sm" placeholder="Nhập nội dung..." />
+                                <div className="flex items-center gap-2">
+                                    <input type="color" value={wmConfig.color} onChange={e => setWmConfig({...wmConfig, color: e.target.value})} className="w-8 h-8 p-0 border rounded cursor-pointer" />
+                                    <span className="text-xs text-gray-500">Size:</span>
+                                    <input type="range" min="10" max="150" value={wmConfig.fontSize} onChange={e => setWmConfig({...wmConfig, fontSize: parseInt(e.target.value)})} className="flex-1 h-1.5 bg-gray-200 rounded-lg accent-blue-600" />
+                                </div>
+                            </div>
+                        )}
+
+                        {wmType === 'image' && (
+                            <div className="space-y-3">
+                                <label className="block w-full py-2 px-3 border border-dashed border-gray-300 rounded text-center text-xs text-gray-500 hover:bg-gray-50 cursor-pointer">
+                                    {wmImage ? 'Đổi logo khác' : 'Tải logo lên (PNG)'}
+                                    <input type="file" className="hidden" accept="image/*" onChange={handleWmImageUpload} />
+                                </label>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-gray-500 w-12">Size:</span>
+                                    <input type="range" min="0.05" max="1" step="0.05" value={wmConfig.scale} onChange={e => setWmConfig({...wmConfig, scale: parseFloat(e.target.value)})} className="flex-1 h-1.5 bg-gray-200 rounded-lg accent-blue-600" />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Common Controls */}
+                        <div className="space-y-3 pt-2 border-t border-gray-100">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500 w-16">Độ mờ:</span>
+                                <input type="range" min="0.1" max="1" step="0.1" value={wmConfig.opacity} onChange={e => setWmConfig({...wmConfig, opacity: parseFloat(e.target.value)})} className="flex-1 h-1.5 bg-gray-200 rounded-lg accent-blue-600" />
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500 w-16">Xoay:</span>
+                                <input type="range" min="-180" max="180" value={wmConfig.rotation} onChange={e => setWmConfig({...wmConfig, rotation: parseInt(e.target.value)})} className="flex-1 h-1.5 bg-gray-200 rounded-lg accent-blue-600" />
+                                <span className="text-[10px] w-6 text-right">{wmConfig.rotation}°</span>
+                            </div>
+
+                            {/* Tiled Specific Controls */}
+                            {wmMode === 'tiled' && (
+                                <div className="bg-blue-50 p-3 rounded-lg space-y-3 mt-2">
+                                    <div className="flex items-center gap-2">
+                                        <Grid3X3 size={14} className="text-blue-600" />
+                                        <span className="text-xs font-bold text-blue-700">Mật độ lưới:</span>
+                                        <input type="range" min="1" max="10" step="1" value={wmConfig.density} onChange={e => setWmConfig({...wmConfig, density: parseInt(e.target.value)})} className="flex-1 h-1.5 bg-blue-200 rounded-lg accent-blue-600" />
+                                        <span className="text-xs font-bold text-blue-700">{wmConfig.density}x</span>
+                                    </div>
+                                    <label className="flex items-center gap-2 text-xs text-blue-700 cursor-pointer">
+                                        <input type="checkbox" checked={wmConfig.stagger} onChange={e => setWmConfig({...wmConfig, stagger: e.target.checked})} className="rounded text-blue-600" />
+                                        Sắp xếp so le (Sole)
+                                    </label>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
@@ -394,10 +480,16 @@ const FacebookCreator: React.FC = () => {
             
             {/* Toolbar Overlay */}
             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-sm text-xs font-medium text-gray-600 flex items-center gap-4 z-10">
-                <span className="flex items-center gap-1"><MousePointer2 size={12}/> Kéo thả để di chuyển</span>
+                <span className="flex items-center gap-1"><MousePointer2 size={12}/> Kéo thả nền</span>
                 <div className="w-px h-3 bg-gray-300"></div>
-                <button onClick={() => { setImgPos({x:0, y:0, scale:1}); setWmConfig({...wmConfig, x:0, y:0}); }} className="hover:text-blue-600 flex items-center gap-1">
-                    <RefreshCw size={12}/> Reset vị trí
+                {wmMode === 'single' && wmType !== 'none' && (
+                    <>
+                        <span className="flex items-center gap-1"><Move size={12}/> Kéo Logo</span>
+                        <div className="w-px h-3 bg-gray-300"></div>
+                    </>
+                )}
+                <button onClick={() => { setImgPos({x:0, y:0, scale:1}); setWmConfig({...wmConfig, x:0, y:0, rotation: 0}); }} className="hover:text-blue-600 flex items-center gap-1">
+                    <RefreshCw size={12}/> Reset
                 </button>
             </div>
 
