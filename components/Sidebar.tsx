@@ -6,7 +6,7 @@ import {
   Settings, Key, ChevronDown, ChevronRight, FileText, 
   Image as ImageIcon, BookOpen, Crop, Eraser, Move, Palette, Aperture, List,
   ClipboardCheck, Megaphone, Target, Calculator, Layout, PieChart, Presentation,
-  Pipette
+  Pipette, Link, BarChart3, TrendingUp
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -27,8 +27,16 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenS
         { id: ToolType.ADS_CONTENT, label: 'Viết Content Ads', icon: Megaphone, description: 'Headline & Copy' },
         { id: ToolType.LANDING_LAYOUT, label: 'Gợi Ý Landing Page', icon: Layout, description: 'Layout chuyển đổi' },
         { id: ToolType.PLAN_SLIDES, label: 'Tạo Slide Plan', icon: Presentation, description: 'Slide kế hoạch MKT' },
-        { id: ToolType.ADS_CALCULATOR, label: 'Tính ROAS/CPA', icon: Calculator, description: 'Máy tính Ads' },
+        { id: ToolType.ADS_CALCULATOR, label: 'Máy Tính Ads', icon: Calculator, description: 'Tính ROAS/CPA' },
         { id: ToolType.BUDGET_PLANNER, label: 'Dự Tính Ngân Sách', icon: PieChart, description: 'Kế hoạch chi tiêu' },
+      ]
+    },
+    {
+      title: 'Phân Tích Số Liệu',
+      items: [
+        { id: ToolType.UTM_BUILDER, label: 'UTM Builder', icon: Link, description: 'Tạo link tracking' },
+        { id: ToolType.URL_SHORTENER, label: 'Rút Gọn Link', icon: Link, description: 'Shorten URL' },
+        { id: ToolType.ROI_CALCULATOR, label: 'Tính ROI & P&L', icon: TrendingUp, description: 'Lãi lỗ thực tế' },
       ]
     },
     {

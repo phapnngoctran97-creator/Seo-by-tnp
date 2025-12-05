@@ -6,7 +6,8 @@ import {
   FileText, Image as ImageIcon, BookOpen, X,
   Crop, Eraser, Move, Palette, Aperture, ImagePlus, List, Type,
   Clock, Timer, Users, Globe, Activity, ClipboardCheck,
-  Megaphone, Target, Calculator, Layout, PieChart, Presentation, Pipette
+  Megaphone, Target, Calculator, Layout, PieChart, Presentation, Pipette,
+  BarChart3, Link, TrendingUp
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -101,6 +102,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     { id: ToolType.BUDGET_PLANNER, title: 'Kế Hoạch Ngân Sách', desc: 'Dự tính chi tiêu.', icon: PieChart, color: 'text-rose-600', bg: 'bg-rose-50' },
   ];
 
+  const analyticsTools: ToolItem[] = [
+    { id: ToolType.ROI_CALCULATOR, title: 'Tính ROI & P&L', desc: 'Lãi lỗ thực tế & Đa kênh.', icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50' },
+    { id: ToolType.UTM_BUILDER, title: 'UTM Builder Pro', desc: 'Tạo link tracking chuẩn.', icon: Link, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { id: ToolType.URL_SHORTENER, title: 'Rút Gọn Link', desc: 'Tạo short-link miễn phí.', icon: Link, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+  ];
+
   const seoTools: ToolItem[] = [
     { id: ToolType.SEO_GRADER, title: 'Chấm Điểm SEO', desc: 'Chuẩn RankMath/Yoast.', icon: ClipboardCheck, color: 'text-blue-600', bg: 'bg-blue-50' },
     { id: ToolType.META_GEN, title: 'Tạo Meta Description', desc: 'AI tạo mô tả chuẩn SEO.', icon: Sparkles, color: 'text-indigo-600', bg: 'bg-indigo-50' },
@@ -134,6 +141,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       icon: Megaphone,
       gradient: 'from-orange-500 to-red-600',
       tools: adsTools
+    },
+    {
+      id: 'analytics',
+      title: 'Phân Tích & Số Liệu',
+      description: 'Đo lường hiệu quả Marketing, Tracking, Lãi lỗ và ROI.',
+      icon: BarChart3,
+      gradient: 'from-teal-500 to-emerald-600',
+      tools: analyticsTools
     },
     {
       id: 'seo',
@@ -280,7 +295,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       {/* Footer Info */}
       <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 text-center text-gray-500 text-sm">
          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-            <strong className="block text-xl text-gray-900 mb-1">{seoTools.length + graphicTools.length + textTools.length + adsTools.length}</strong>
+            <strong className="block text-xl text-gray-900 mb-1">{seoTools.length + graphicTools.length + textTools.length + adsTools.length + analyticsTools.length}</strong>
             Công cụ tích hợp
          </div>
          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">

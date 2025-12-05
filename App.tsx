@@ -26,6 +26,10 @@ import LandingLayoutGen from './components/Tools/LandingLayoutGen';
 import AdsCalculator from './components/Tools/AdsCalculator';
 import BudgetPlanner from './components/Tools/BudgetPlanner';
 import MarketingPlanSlides from './components/Tools/MarketingPlanSlides';
+// Analytics Tools
+import UtmBuilder from './components/Tools/UtmBuilder';
+import UrlShortener from './components/Tools/UrlShortener';
+import RoiCalculator from './components/Tools/RoiCalculator';
 
 import Dashboard from './components/Dashboard';
 import ApiKeyModal from './components/ApiKeyModal';
@@ -69,6 +73,11 @@ const App: React.FC = () => {
       case ToolType.BUDGET_PLANNER: return <BudgetPlanner />;
       case ToolType.PLAN_SLIDES: return <MarketingPlanSlides />;
       
+      // Analytics Tools
+      case ToolType.UTM_BUILDER: return <UtmBuilder />;
+      case ToolType.URL_SHORTENER: return <UrlShortener />;
+      case ToolType.ROI_CALCULATOR: return <RoiCalculator />;
+
       default: return <Dashboard onNavigate={setActiveTool} />;
     }
   };
