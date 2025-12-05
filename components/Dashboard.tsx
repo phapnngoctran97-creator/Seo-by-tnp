@@ -4,10 +4,10 @@ import { ToolType } from '../types';
 import { 
   Sparkles, Search, Zap, Network, QrCode, ArrowRight, 
   FileText, Image as ImageIcon, BookOpen, X,
-  Crop, Eraser, Move, Palette, Aperture, ImagePlus, List, Type,
+  Eraser, Move, Palette, Aperture, ImagePlus, List, Type,
   Clock, Timer, Users, Globe, Activity, ClipboardCheck,
   Megaphone, Target, Calculator, Layout, PieChart, Presentation, Pipette,
-  BarChart3, Link, TrendingUp, DollarSign, History
+  BarChart3, Link, TrendingUp, DollarSign, History, Facebook
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -48,7 +48,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     { id: ToolType.ADS_STRUCTURE, title: 'Tạo Cấu Trúc Camp', desc: 'AI tạo sơ đồ chiến dịch.', icon: Network, color: 'text-blue-600', bg: 'bg-blue-50' },
     { id: ToolType.ADS_CONTENT, title: 'Viết Content Ads', desc: 'Headline & Copywriting.', icon: Megaphone, color: 'text-orange-600', bg: 'bg-orange-50' },
     { id: ToolType.LANDING_LAYOUT, title: 'Layout Landing Page', desc: 'Gợi ý cấu trúc sales page.', icon: Layout, color: 'text-purple-600', bg: 'bg-purple-50' },
-    { id: ToolType.PLAN_SLIDES, title: 'Tạo Slide Plan', desc: 'Làm Slide kế hoạch HTML.', icon: Presentation, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+    { id: ToolType.PLAN_SLIDES, title: 'Tạo Slide Plan', desc: 'Làm Slide kế hoạch MKT.', icon: Presentation, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { id: ToolType.ADS_CALCULATOR, title: 'Máy Tính Ads', desc: 'Tính ROAS, CPA, CAC.', icon: Calculator, color: 'text-teal-600', bg: 'bg-teal-50' },
     { id: ToolType.BUDGET_PLANNER, title: 'Kế Hoạch Ngân Sách', desc: 'Dự tính chi tiêu.', icon: PieChart, color: 'text-rose-600', bg: 'bg-rose-50' },
   ];
@@ -72,8 +72,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   ];
 
   const graphicTools: ToolItem[] = [
+    { id: ToolType.FB_CREATOR, title: 'Tạo Ảnh Facebook', desc: 'Post, Story, Ads đầy đủ size.', icon: Facebook, color: 'text-blue-600', bg: 'bg-blue-50' },
     { id: ToolType.IMG_COMPRESS, title: 'Nén Ảnh Pro', desc: 'Giảm dung lượng hàng loạt.', icon: ImageIcon, color: 'text-pink-600', bg: 'bg-pink-50' },
-    { id: ToolType.AVATAR_MAKER, title: 'Tạo Avatar', desc: 'Cắt ảnh tròn/vuông.', icon: Crop, color: 'text-violet-600', bg: 'bg-violet-50' },
     { id: ToolType.BG_REMOVER, title: 'Xóa Nền Đơn Giản', desc: 'Tách nền theo màu.', icon: Eraser, color: 'text-rose-600', bg: 'bg-rose-50' },
     { id: ToolType.IMG_RESIZER, title: 'Resize & Watermark', desc: 'Đổi kích thước & Đóng dấu.', icon: Move, color: 'text-sky-600', bg: 'bg-sky-50' },
     { id: ToolType.BANNER_GEN, title: 'Tạo Banner', desc: 'FB/YouTube Cover.', icon: Palette, color: 'text-amber-600', bg: 'bg-amber-50' },
@@ -118,7 +118,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     {
       id: 'graphic',
       title: 'Đồ Họa & Hình Ảnh',
-      description: 'Nén ảnh, cắt avatar, xóa nền, resize và tạo banner nhanh chóng.',
+      description: 'Tạo ảnh Facebook, nén ảnh, xóa nền, resize và tạo banner nhanh chóng.',
       icon: ImagePlus,
       gradient: 'from-pink-500 to-rose-500',
       tools: graphicTools

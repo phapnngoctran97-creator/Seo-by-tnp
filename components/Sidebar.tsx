@@ -4,7 +4,7 @@ import { NavGroup, ToolType } from '../types';
 import { 
   LayoutDashboard, Sparkles, Search, Zap, Network, QrCode, 
   Settings, Key, ChevronDown, ChevronRight, FileText, 
-  Image as ImageIcon, BookOpen, Crop, Eraser, Move, Palette, Aperture, List,
+  Image as ImageIcon, BookOpen, Facebook, Eraser, Move, Palette, Aperture, List,
   ClipboardCheck, Megaphone, Target, Calculator, Layout, PieChart, Presentation,
   Pipette, Link, BarChart3, TrendingUp, DollarSign, Activity
 } from 'lucide-react';
@@ -17,7 +17,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenSettings }) => {
-  const [expandedGroup, setExpandedGroup] = useState<string | null>('Phân Tích Số Liệu');
+  const [expandedGroup, setExpandedGroup] = useState<string | null>('Đồ họa & Hình ảnh');
 
   const navGroups: NavGroup[] = [
     {
@@ -56,8 +56,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenS
     {
       title: 'Đồ họa & Hình ảnh',
       items: [
+        { id: ToolType.FB_CREATOR, label: 'Tạo Ảnh Facebook', icon: Facebook, description: 'Post, Reel, Story, Ads' },
         { id: ToolType.IMG_COMPRESS, label: 'Nén Ảnh', icon: ImageIcon, description: 'Giảm dung lượng' },
-        { id: ToolType.AVATAR_MAKER, label: 'Tạo Avatar', icon: Crop, description: 'Cắt ảnh đại diện' },
         { id: ToolType.BG_REMOVER, label: 'Xóa Nền Đơn Giản', icon: Eraser, description: 'Tách nền màu' },
         { id: ToolType.IMG_RESIZER, label: 'Resize Ảnh', icon: Move, description: 'Đổi kích thước' },
         { id: ToolType.BANNER_GEN, label: 'Tạo Banner', icon: Palette, description: 'FB/Youtube Cover' },

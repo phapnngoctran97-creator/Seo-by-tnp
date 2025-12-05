@@ -13,7 +13,7 @@ import WordCounter from './components/Tools/WordCounter';
 import ImageCompressor from './components/Tools/ImageCompressor';
 import PlagiarismChecker from './components/Tools/PlagiarismChecker';
 // Graphic Tools
-import AvatarMaker from './components/Tools/AvatarMaker';
+import FacebookCreator from './components/Tools/FacebookCreator'; // Changed
 import BgRemover from './components/Tools/BgRemover';
 import ImageResizer from './components/Tools/ImageResizer';
 import BannerCreator from './components/Tools/BannerCreator';
@@ -81,7 +81,7 @@ const App: React.FC = () => {
       case ToolType.PLAGIARISM_CHECK: return <PlagiarismChecker />;
 
       // Graphic Tools
-      case ToolType.AVATAR_MAKER: return <AvatarMaker />;
+      case ToolType.FB_CREATOR: return <FacebookCreator />; // Changed
       case ToolType.BG_REMOVER: return <BgRemover />;
       case ToolType.IMG_RESIZER: return <ImageResizer />;
       case ToolType.BANNER_GEN: return <BannerCreator />;
