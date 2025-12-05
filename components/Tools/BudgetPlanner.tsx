@@ -1,27 +1,34 @@
 
-import React, { useState } from 'react';
-import { PieChart, Target, Calculator, Eye, MousePointer2, MessageCircle, Users, Video } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  PieChart, Target, Calculator, Eye, MousePointer2, 
+  MessageCircle, Users, Video, Facebook, Search, Music, 
+  RefreshCw, DollarSign, BarChart2 
+} from 'lucide-react';
+
+type Platform = 'facebook' | 'google' | 'tiktok';
 
 const BudgetPlanner: React.FC = () => {
-  // Inputs for Volume (Mục tiêu số lượng)
-  const [targetImp, setTargetImp] = useState<number | ''>('');
-  const [targetReach, setTargetReach] = useState<number | ''>('');
-  const [targetClicks, setTargetClicks] = useState<number | ''>('');
-  const [targetViews, setTargetViews] = useState<number | ''>('');
-  const [targetMess, setTargetMess] = useState<number | ''>('');
+  const [platform, setPlatform] = useState<Platform>('facebook');
 
-  // Inputs for Cost (Chi phí đơn vị)
-  const [cpm, setCpm] = useState<number | ''>(''); // Cost per 1000 Impressions
-  const [costPerReach, setCostPerReach] = useState<number | ''>(''); // Cost per 1 Reach
-  const [cpc, setCpc] = useState<number | ''>(''); // Cost per Click
-  const [cpv, setCpv] = useState<number | ''>(''); // Cost per View
-  const [costPerMess, setCostPerMess] = useState<number | ''>(''); // Cost per Mess
+  // Unified State for all metrics
+  // Volume Targets
+  const [imp, setImp] = useState<number | ''>('');
+  const [clicks, setClicks] = useState<number | ''>('');
+  const [views, setViews] = useState<number | ''>('');
+  const [conversions, setConversions] = useState<number | ''>(''); // Mess (FB) or Conv (Google/TikTok)
 
-  // Revenue Projection Inputs
-  const [avgOrderValue, setAvgOrderValue] = useState<number | ''>('');
-  const [estConversionRate, setEstConversionRate] = useState<number | ''>(5); // Default 5%
+  // Unit Costs
+  const [cpm, setCpm] = useState<number | ''>('');
+  const [cpc, setCpc] = useState<number | ''>('');
+  const [cpv, setCpv] = useState<number | ''>('');
+  const [cpa, setCpa] = useState<number | ''>(''); // Cost per Result (Mess/Conv)
 
-  // Input Handler
+  // Revenue
+  const [aov, setAov] = useState<number | ''>(''); // Average Order Value
+  const [crSales, setCrSales] = useState<number | ''>(10); // Conversion Rate to Sales (from Lead/Click)
+
+  // Input Handler with Comma Formatting
   const handleNumChange = (val: string, setter: (v: number | '') => void) => {
     const raw = val.replace(/,/g, '');
     if (raw === '') setter('');
@@ -30,266 +37,298 @@ const BudgetPlanner: React.FC = () => {
 
   const fmt = (num: number | '') => num === '' ? '' : num.toLocaleString('en-US');
 
-  // Calculations
-  const budgetImp = ((Number(targetImp) || 0) / 1000) * (Number(cpm) || 0);
-  const budgetReach = (Number(targetReach) || 0) * (Number(costPerReach) || 0);
-  const budgetClick = (Number(targetClicks) || 0) * (Number(cpc) || 0);
-  const budgetView = (Number(targetViews) || 0) * (Number(cpv) || 0);
-  const budgetMess = (Number(targetMess) || 0) * (Number(costPerMess) || 0);
+  // --- CALCULATIONS ---
+  const budgetFromImp = ((Number(imp)||0) / 1000) * (Number(cpm)||0);
+  const budgetFromClicks = (Number(clicks)||0) * (Number(cpc)||0);
+  const budgetFromViews = (Number(views)||0) * (Number(cpv)||0);
+  const budgetFromConv = (Number(conversions)||0) * (Number(cpa)||0);
 
-  const totalBudget = budgetImp + budgetReach + budgetClick + budgetView + budgetMess;
+  // Total Budget: Sum relevant metrics based on platform logic or user input
+  const totalBudget = budgetFromImp + budgetFromClicks + budgetFromViews + budgetFromConv;
 
-  // Projection Logic
-  // We prioritize metrics closer to purchase: Mess > Click > View > Reach > Imp
-  let projectionBase = 0;
-  let projectionSource = '';
+  // Derived Metrics for Dashboard Simulation (Fallback logic for empty fields)
+  const derivedImp = Number(imp) || (Number(clicks) * 100) || 0; 
+  const derivedClicks = Number(clicks) || (Number(conversions) * 10) || 0;
+  
+  const ctr = derivedImp > 0 ? (derivedClicks / derivedImp) * 100 : 0;
+  const conversionRate = derivedClicks > 0 ? ((Number(conversions)||0) / derivedClicks) * 100 : 0;
+  
+  // Revenue
+  const estOrders = Math.floor((Number(conversions)||0) * ((Number(crSales)||0) / 100));
+  const estRevenue = estOrders * (Number(aov)||0);
+  const roas = totalBudget > 0 ? estRevenue / totalBudget : 0;
 
-  if (Number(targetMess) > 0) {
-      projectionBase = Number(targetMess);
-      projectionSource = 'Tin nhắn (Mess)';
-  } else if (Number(targetClicks) > 0) {
-      projectionBase = Number(targetClicks);
-      projectionSource = 'Lượt Click';
-  } else if (Number(targetViews) > 0) {
-      projectionBase = Number(targetViews);
-      projectionSource = 'Lượt Xem';
-  }
+  // Platform Configs
+  const config = {
+    facebook: {
+      color: 'blue',
+      icon: Facebook,
+      label: 'Facebook Ads',
+      metrics: [
+        { label: 'Impressions', val: imp, set: setImp, unitCostLabel: 'CPM (Giá/1000 hiển thị)', unitCost: cpm, setUnit: setCpm },
+        { label: 'Link Clicks', val: clicks, set: setClicks, unitCostLabel: 'CPC (Giá click)', unitCost: cpc, setUnit: setCpc },
+        { label: 'Messaging / Leads', val: conversions, set: setConversions, unitCostLabel: 'Cost per Result', unitCost: cpa, setUnit: setCpa },
+      ],
+      resultLabel: 'Conversations'
+    },
+    google: {
+      color: 'red',
+      icon: Search,
+      label: 'Google Ads',
+      metrics: [
+        { label: 'Impressions (Search)', val: imp, set: setImp, unitCostLabel: 'Avg. CPM (Display only)', unitCost: cpm, setUnit: setCpm },
+        { label: 'Clicks', val: clicks, set: setClicks, unitCostLabel: 'Avg. CPC', unitCost: cpc, setUnit: setCpc },
+        { label: 'Conversions', val: conversions, set: setConversions, unitCostLabel: 'CPA (Cost/Conv)', unitCost: cpa, setUnit: setCpa },
+      ],
+      resultLabel: 'Conversions'
+    },
+    tiktok: {
+      color: 'stone', // Dark theme
+      icon: Music,
+      label: 'TikTok Ads',
+      metrics: [
+        { label: 'Impressions', val: imp, set: setImp, unitCostLabel: 'CPM', unitCost: cpm, setUnit: setCpm },
+        { label: 'Video Views (6s)', val: views, set: setViews, unitCostLabel: 'CPV', unitCost: cpv, setUnit: setCpv },
+        { label: 'Conversions', val: conversions, set: setConversions, unitCostLabel: 'CPA', unitCost: cpa, setUnit: setCpa },
+      ],
+      resultLabel: 'Conversions'
+    }
+  };
 
-  const estOrders = Math.floor(projectionBase * ((Number(estConversionRate) || 0) / 100));
-  const estRevenue = estOrders * (Number(avgOrderValue) || 0);
-  const estProfit = estRevenue - totalBudget;
-  const estRoas = totalBudget > 0 ? estRevenue / totalBudget : 0;
+  const activeConfig = config[platform];
+  const ThemeIcon = activeConfig.icon;
+
+  const reset = () => {
+    setImp(''); setClicks(''); setViews(''); setConversions('');
+    setCpm(''); setCpc(''); setCpv(''); setCpa('');
+    setAov('');
+  };
 
   return (
-    <div className="max-w-5xl mx-auto">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <PieChart className="text-indigo-600" /> Lập Kế Hoạch Ngân Sách (Media Plan)
-        </h2>
-        <p className="text-gray-600 mt-1">Tính toán chi phí dựa trên Impression, Reach, Click, View hoặc Messaging.</p>
+    <div className="max-w-6xl mx-auto pb-10">
+      
+      {/* HEADER & SELECTOR */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div>
+           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+             <Calculator className="text-indigo-600" /> Lập Kế Hoạch Ngân Sách (Media Plan)
+           </h2>
+           <p className="text-gray-600 mt-1">Giả lập chiến dịch và dự tính ngân sách theo từng nền tảng.</p>
+        </div>
+        
+        <div className="flex bg-white p-1 rounded-lg border border-gray-200 shadow-sm self-start md:self-auto">
+           {(['facebook', 'google', 'tiktok'] as Platform[]).map(p => (
+              <button
+                key={p}
+                onClick={() => setPlatform(p)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${
+                   platform === p 
+                   ? p === 'facebook' ? 'bg-blue-600 text-white' 
+                     : p === 'google' ? 'bg-red-500 text-white' 
+                     : 'bg-black text-white'
+                   : 'text-gray-500 hover:bg-gray-100'
+                }`}
+              >
+                  {p === 'facebook' && <Facebook size={16} />}
+                  {p === 'google' && <Search size={16} />}
+                  {p === 'tiktok' && <Music size={16} />}
+                  <span className="capitalize">{p} Ads</span>
+              </button>
+           ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-         {/* LEFT: INPUT GRID */}
-         <div className="lg:col-span-8 space-y-6">
+         
+         {/* LEFT: INPUTS (Funnel) */}
+         <div className="lg:col-span-5 space-y-6">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-               <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2 border-b pb-2">
-                   <Target size={18}/> Mục tiêu & Đơn giá
-               </h3>
-               
-               <div className="space-y-6">
-                   {/* 1. Awareness */}
-                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-gray-50 p-3 rounded-lg border border-gray-100">
-                       <div className="md:col-span-4">
-                           <label className="flex items-center gap-1 text-xs font-bold text-gray-500 uppercase mb-1">
-                               <Eye size={14} /> Impression (Lượt hiển thị)
-                           </label>
-                           <input 
-                                type="text" value={fmt(targetImp)} onChange={e => handleNumChange(e.target.value, setTargetImp)} 
-                                className="w-full p-2 border rounded focus:ring-indigo-500 outline-none text-sm" placeholder="VD: 1,000,000" 
-                           />
-                       </div>
-                       <div className="md:col-span-4">
-                           <label className="flex items-center gap-1 text-xs font-bold text-gray-500 uppercase mb-1">
-                               CPM (Giá / 1000 lần)
-                           </label>
-                           <input 
-                                type="text" value={fmt(cpm)} onChange={e => handleNumChange(e.target.value, setCpm)} 
-                                className="w-full p-2 border rounded focus:ring-indigo-500 outline-none text-sm" placeholder="VD: 20,000" 
-                           />
-                       </div>
-                       <div className="md:col-span-4 text-right">
-                           <div className="text-xs text-gray-400 mb-1">Thành tiền</div>
-                           <div className="font-bold text-indigo-600">{budgetImp.toLocaleString('vi-VN')} đ</div>
-                       </div>
-                   </div>
-
-                   {/* 2. Reach */}
-                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-gray-50 p-3 rounded-lg border border-gray-100">
-                       <div className="md:col-span-4">
-                           <label className="flex items-center gap-1 text-xs font-bold text-gray-500 uppercase mb-1">
-                               <Users size={14} /> Reach (Tiếp cận)
-                           </label>
-                           <input 
-                                type="text" value={fmt(targetReach)} onChange={e => handleNumChange(e.target.value, setTargetReach)} 
-                                className="w-full p-2 border rounded focus:ring-indigo-500 outline-none text-sm" placeholder="VD: 500,000" 
-                           />
-                       </div>
-                       <div className="md:col-span-4">
-                           <label className="flex items-center gap-1 text-xs font-bold text-gray-500 uppercase mb-1">
-                               Cost per Reach (Giá / người)
-                           </label>
-                           <input 
-                                type="text" value={fmt(costPerReach)} onChange={e => handleNumChange(e.target.value, setCostPerReach)} 
-                                className="w-full p-2 border rounded focus:ring-indigo-500 outline-none text-sm" placeholder="VD: 50" 
-                           />
-                       </div>
-                       <div className="md:col-span-4 text-right">
-                           <div className="text-xs text-gray-400 mb-1">Thành tiền</div>
-                           <div className="font-bold text-indigo-600">{budgetReach.toLocaleString('vi-VN')} đ</div>
-                       </div>
-                   </div>
-
-                   {/* 3. Traffic */}
-                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-blue-50 p-3 rounded-lg border border-blue-100">
-                       <div className="md:col-span-4">
-                           <label className="flex items-center gap-1 text-xs font-bold text-blue-800 uppercase mb-1">
-                               <MousePointer2 size={14} /> Click (Lượt nhấn)
-                           </label>
-                           <input 
-                                type="text" value={fmt(targetClicks)} onChange={e => handleNumChange(e.target.value, setTargetClicks)} 
-                                className="w-full p-2 border rounded focus:ring-blue-500 outline-none text-sm" placeholder="VD: 5,000" 
-                           />
-                       </div>
-                       <div className="md:col-span-4">
-                           <label className="flex items-center gap-1 text-xs font-bold text-blue-800 uppercase mb-1">
-                               CPC (Giá / Click)
-                           </label>
-                           <input 
-                                type="text" value={fmt(cpc)} onChange={e => handleNumChange(e.target.value, setCpc)} 
-                                className="w-full p-2 border rounded focus:ring-blue-500 outline-none text-sm" placeholder="VD: 3,000" 
-                           />
-                       </div>
-                       <div className="md:col-span-4 text-right">
-                           <div className="text-xs text-gray-400 mb-1">Thành tiền</div>
-                           <div className="font-bold text-blue-600">{budgetClick.toLocaleString('vi-VN')} đ</div>
-                       </div>
-                   </div>
-
-                   {/* 4. Video */}
-                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-gray-50 p-3 rounded-lg border border-gray-100">
-                       <div className="md:col-span-4">
-                           <label className="flex items-center gap-1 text-xs font-bold text-gray-500 uppercase mb-1">
-                               <Video size={14} /> View (Lượt xem)
-                           </label>
-                           <input 
-                                type="text" value={fmt(targetViews)} onChange={e => handleNumChange(e.target.value, setTargetViews)} 
-                                className="w-full p-2 border rounded focus:ring-indigo-500 outline-none text-sm" placeholder="VD: 10,000" 
-                           />
-                       </div>
-                       <div className="md:col-span-4">
-                           <label className="flex items-center gap-1 text-xs font-bold text-gray-500 uppercase mb-1">
-                               CPV (Giá / View)
-                           </label>
-                           <input 
-                                type="text" value={fmt(cpv)} onChange={e => handleNumChange(e.target.value, setCpv)} 
-                                className="w-full p-2 border rounded focus:ring-indigo-500 outline-none text-sm" placeholder="VD: 200" 
-                           />
-                       </div>
-                       <div className="md:col-span-4 text-right">
-                           <div className="text-xs text-gray-400 mb-1">Thành tiền</div>
-                           <div className="font-bold text-indigo-600">{budgetView.toLocaleString('vi-VN')} đ</div>
-                       </div>
-                   </div>
-
-                   {/* 5. Messaging */}
-                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-green-50 p-3 rounded-lg border border-green-100">
-                       <div className="md:col-span-4">
-                           <label className="flex items-center gap-1 text-xs font-bold text-green-800 uppercase mb-1">
-                               <MessageCircle size={14} /> Messaging (Tin nhắn)
-                           </label>
-                           <input 
-                                type="text" value={fmt(targetMess)} onChange={e => handleNumChange(e.target.value, setTargetMess)} 
-                                className="w-full p-2 border rounded focus:ring-green-500 outline-none text-sm font-bold" placeholder="VD: 200" 
-                           />
-                       </div>
-                       <div className="md:col-span-4">
-                           <label className="flex items-center gap-1 text-xs font-bold text-green-800 uppercase mb-1">
-                               Cost per Mess (Giá / Tin)
-                           </label>
-                           <input 
-                                type="text" value={fmt(costPerMess)} onChange={e => handleNumChange(e.target.value, setCostPerMess)} 
-                                className="w-full p-2 border rounded focus:ring-green-500 outline-none text-sm" placeholder="VD: 50,000" 
-                           />
-                       </div>
-                       <div className="md:col-span-4 text-right">
-                           <div className="text-xs text-gray-400 mb-1">Thành tiền</div>
-                           <div className="font-bold text-green-600">{budgetMess.toLocaleString('vi-VN')} đ</div>
-                       </div>
-                   </div>
-
-               </div>
-            </div>
-
-            {/* REVENUE PROJECTION SECTION */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 opacity-90">
                <div className="flex justify-between items-center mb-4 border-b pb-2">
                    <h3 className="font-bold text-gray-700 flex items-center gap-2">
-                      <Calculator size={18}/> Dự báo Doanh thu (Ước tính)
+                      <Target size={18} /> Mục tiêu & Chi phí
                    </h3>
-                   <div className="text-xs text-gray-500 italic">Dựa trên {projectionSource || 'số liệu nhập'}</div>
+                   <button onClick={reset} className="text-xs text-gray-400 hover:text-red-500 flex items-center gap-1">
+                      <RefreshCw size={12} /> Reset
+                   </button>
                </div>
                
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   <div className="space-y-4">
+               <div className="space-y-4">
+                  {activeConfig.metrics.map((m, idx) => (
+                      <div key={idx} className={`p-3 rounded-lg border ${m.val || m.unitCost ? `bg-${activeConfig.color}-50 border-${activeConfig.color}-200` : 'bg-gray-50 border-gray-100'}`}>
+                          <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{m.label}</label>
+                                  <input 
+                                     type="text" 
+                                     value={fmt(m.val)} 
+                                     onChange={e => handleNumChange(e.target.value, m.set)}
+                                     className="w-full p-2 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                                     placeholder="0"
+                                  />
+                              </div>
+                              <div>
+                                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{m.unitCostLabel}</label>
+                                  <input 
+                                     type="text" 
+                                     value={fmt(m.unitCost)} 
+                                     onChange={e => handleNumChange(e.target.value, m.setUnit)}
+                                     className="w-full p-2 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                                     placeholder="0"
+                                  />
+                              </div>
+                          </div>
+                      </div>
+                  ))}
+               </div>
+
+               {/* REVENUE INPUTS */}
+               <div className="mt-6 pt-4 border-t border-gray-100">
+                   <h4 className="font-bold text-gray-700 mb-3 text-sm flex items-center gap-2">
+                      <DollarSign size={16}/> Ước tính doanh thu
+                   </h4>
+                   <div className="grid grid-cols-2 gap-4">
                        <div>
-                          <label className="block text-sm font-medium text-gray-600 mb-1">Tỷ lệ chuyển đổi ra đơn (%)</label>
+                          <label className="block text-xs text-gray-500 mb-1">Tỷ lệ chốt đơn (%)</label>
                           <input 
-                            type="number" value={estConversionRate} onChange={e => setEstConversionRate(parseFloat(e.target.value))} 
-                            className="w-full p-2 border rounded focus:ring-indigo-500 outline-none text-sm" placeholder="5" 
+                             type="number" value={crSales} onChange={e => setCrSales(parseFloat(e.target.value))}
+                             className="w-full p-2 border rounded text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="10"
                           />
                        </div>
                        <div>
-                          <label className="block text-sm font-medium text-gray-600 mb-1">Giá trị đơn hàng trung bình (AOV)</label>
+                          <label className="block text-xs text-gray-500 mb-1">Giá trị đơn (AOV)</label>
                           <input 
-                            type="text" value={fmt(avgOrderValue)} onChange={e => handleNumChange(e.target.value, setAvgOrderValue)} 
-                            className="w-full p-2 border rounded focus:ring-indigo-500 outline-none text-sm" placeholder="500,000" 
+                             type="text" value={fmt(aov)} onChange={e => handleNumChange(e.target.value, setAov)}
+                             className="w-full p-2 border rounded text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="500,000"
                           />
-                       </div>
-                   </div>
-                   
-                   <div className="bg-gray-50 p-4 rounded-lg flex flex-col justify-center space-y-2">
-                       <div className="flex justify-between">
-                           <span className="text-sm text-gray-600">Số đơn dự kiến:</span>
-                           <span className="font-bold text-gray-800">{estOrders}</span>
-                       </div>
-                       <div className="flex justify-between">
-                           <span className="text-sm text-gray-600">Doanh thu dự kiến:</span>
-                           <span className="font-bold text-gray-800">{estRevenue.toLocaleString('vi-VN')} đ</span>
-                       </div>
-                       <div className="flex justify-between pt-2 border-t border-gray-200">
-                           <span className="text-sm font-bold text-gray-600">Lợi nhuận (tạm tính):</span>
-                           <span className={`font-bold ${estProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                              {estProfit.toLocaleString('vi-VN')} đ
-                           </span>
-                       </div>
-                       <div className="text-right text-xs text-indigo-600 font-bold mt-1">
-                           ROAS: {estRoas.toFixed(2)}x
                        </div>
                    </div>
                </div>
             </div>
          </div>
 
-         {/* RIGHT: SUMMARY CARD */}
-         <div className="lg:col-span-4">
-            <div className="bg-indigo-600 text-white p-6 rounded-xl shadow-lg sticky top-6">
-               <h3 className="text-sm font-medium text-indigo-100 uppercase mb-4">Tổng Ngân Sách Cần Có</h3>
-               <div className="text-4xl font-bold flex flex-col gap-1 mb-6">
-                  {totalBudget.toLocaleString('vi-VN')} 
-                  <span className="text-sm font-normal opacity-80">VNĐ / Chiến dịch</span>
-               </div>
-               
-               <div className="space-y-3 text-sm border-t border-indigo-500 pt-4">
-                   {budgetImp > 0 && <div className="flex justify-between"><span>Hiển thị:</span> <span>{budgetImp.toLocaleString('vi-VN')} đ</span></div>}
-                   {budgetReach > 0 && <div className="flex justify-between"><span>Tiếp cận:</span> <span>{budgetReach.toLocaleString('vi-VN')} đ</span></div>}
-                   {budgetClick > 0 && <div className="flex justify-between"><span>Click:</span> <span>{budgetClick.toLocaleString('vi-VN')} đ</span></div>}
-                   {budgetView > 0 && <div className="flex justify-between"><span>Video:</span> <span>{budgetView.toLocaleString('vi-VN')} đ</span></div>}
-                   {budgetMess > 0 && <div className="flex justify-between"><span>Tin nhắn:</span> <span>{budgetMess.toLocaleString('vi-VN')} đ</span></div>}
-               </div>
+         {/* RIGHT: SIMULATED DASHBOARD */}
+         <div className="lg:col-span-7">
+             
+             {/* 1. TOP SUMMARY CARD */}
+             <div className={`rounded-xl shadow-lg p-6 mb-6 text-white transition-colors duration-300 relative overflow-hidden ${
+                 platform === 'facebook' ? 'bg-gradient-to-br from-blue-600 to-blue-800' :
+                 platform === 'google' ? 'bg-white border-t-4 border-red-500 text-gray-800 shadow-md' :
+                 'bg-gradient-to-br from-gray-900 to-black'
+             }`}>
+                 <div className="flex justify-between items-start mb-6 relative z-10">
+                     <div className="flex items-center gap-3">
+                         <div className={`p-2 rounded-lg ${platform === 'google' ? 'bg-gray-100' : 'bg-white/20'}`}>
+                            <ThemeIcon size={24} className={platform === 'google' ? 'text-red-500' : 'text-white'} />
+                         </div>
+                         <div>
+                             <h3 className={`font-bold text-lg ${platform === 'google' ? 'text-gray-800' : 'text-white'}`}>
+                                 {activeConfig.label} Campaign
+                             </h3>
+                             <p className={`text-xs ${platform === 'google' ? 'text-gray-500' : 'text-white/70'}`}>Plan ID: #2024-Q4</p>
+                         </div>
+                     </div>
+                     <div className="text-right">
+                         <div className={`text-xs uppercase font-bold mb-1 ${platform === 'google' ? 'text-gray-500' : 'text-white/70'}`}>Ngân sách dự kiến</div>
+                         <div className={`text-3xl font-extrabold ${platform === 'google' ? 'text-gray-900' : 'text-white'}`}>
+                             {totalBudget.toLocaleString('vi-VN')} đ
+                         </div>
+                     </div>
+                 </div>
 
-               <button 
-                  onClick={() => {
-                      setTargetImp(''); setTargetReach(''); setTargetClicks(''); setTargetViews(''); setTargetMess('');
-                      setCpm(''); setCostPerReach(''); setCpc(''); setCpv(''); setCostPerMess('');
-                      setAvgOrderValue('');
-                  }}
-                  className="w-full mt-8 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
-               >
-                  Làm mới
-               </button>
-            </div>
+                 {/* METRICS GRID - STYLED LIKE PLATFORM */}
+                 <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 relative z-10 ${platform === 'google' ? '' : 'text-white'}`}>
+                     
+                     <div className={`p-3 rounded-lg ${platform === 'google' ? 'bg-gray-50' : 'bg-white/10'}`}>
+                         <div className={`text-xs mb-1 ${platform === 'google' ? 'text-gray-500' : 'text-white/60'}`}>Results ({activeConfig.resultLabel})</div>
+                         <div className="text-xl font-bold">{(Number(conversions)||0).toLocaleString()}</div>
+                     </div>
+
+                     <div className={`p-3 rounded-lg ${platform === 'google' ? 'bg-gray-50' : 'bg-white/10'}`}>
+                         <div className={`text-xs mb-1 ${platform === 'google' ? 'text-gray-500' : 'text-white/60'}`}>Cost per Result</div>
+                         <div className="text-xl font-bold">
+                             {((Number(conversions)||0) > 0 ? (totalBudget / (Number(conversions)||0)) : 0).toLocaleString('vi-VN', {maximumFractionDigits: 0})} đ
+                         </div>
+                     </div>
+
+                     <div className={`p-3 rounded-lg ${platform === 'google' ? 'bg-gray-50' : 'bg-white/10'}`}>
+                         <div className={`text-xs mb-1 ${platform === 'google' ? 'text-gray-500' : 'text-white/60'}`}>Impressions</div>
+                         <div className="text-xl font-bold">{(Number(imp)||0).toLocaleString()}</div>
+                     </div>
+
+                     <div className={`p-3 rounded-lg ${platform === 'google' ? 'bg-gray-50' : 'bg-white/10'}`}>
+                         <div className={`text-xs mb-1 ${platform === 'google' ? 'text-gray-500' : 'text-white/60'}`}>ROAS</div>
+                         <div className={`text-xl font-bold ${roas >= 2 ? (platform === 'google' ? 'text-green-600' : 'text-green-300') : ''}`}>
+                             {roas.toFixed(2)}x
+                         </div>
+                     </div>
+
+                 </div>
+
+                 {/* Decor */}
+                 {platform === 'tiktok' && <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-pink-500/20 rounded-full blur-3xl"></div>}
+                 {platform === 'tiktok' && <div className="absolute -left-10 -top-10 w-40 h-40 bg-teal-500/20 rounded-full blur-3xl"></div>}
+             </div>
+
+             {/* 2. FUNNEL ANALYSIS CARD */}
+             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                 <h3 className="font-bold text-gray-700 mb-6 flex items-center gap-2">
+                    <BarChart2 size={18} /> Phân tích phễu & Doanh thu
+                 </h3>
+                 
+                 <div className="flex flex-col md:flex-row gap-8 items-center">
+                     {/* Funnel Visual */}
+                     <div className="w-full md:w-1/2 space-y-2">
+                         <div className="bg-gray-100 rounded p-2 flex justify-between items-center text-xs relative overflow-hidden group">
+                             <div className="absolute left-0 top-0 bottom-0 bg-blue-100 w-full z-0 origin-left"></div>
+                             <span className="relative z-10 font-bold text-gray-700 ml-2">Impressions</span>
+                             <span className="relative z-10 font-mono text-gray-600 mr-2">{(Number(imp)||0).toLocaleString()}</span>
+                         </div>
+                         <div className="flex justify-center"><div className="w-0.5 h-3 bg-gray-300"></div></div>
+                         
+                         <div className="bg-gray-100 rounded p-2 flex justify-between items-center text-xs relative overflow-hidden mx-4">
+                             <div className="absolute left-0 top-0 bottom-0 bg-blue-200 w-full z-0 origin-left" style={{width: '60%'}}></div>
+                             <span className="relative z-10 font-bold text-gray-700 ml-2">Clicks</span>
+                             <span className="relative z-10 font-mono text-gray-600 mr-2">{(Number(clicks)||0).toLocaleString()}</span>
+                             <span className="absolute right-[-40px] group-hover:right-2 text-[10px] bg-white px-1 rounded shadow text-blue-600 font-bold transition-all">CTR: {ctr.toFixed(2)}%</span>
+                         </div>
+                         <div className="flex justify-center"><div className="w-0.5 h-3 bg-gray-300"></div></div>
+
+                         <div className="bg-gray-100 rounded p-2 flex justify-between items-center text-xs relative overflow-hidden mx-8">
+                             <div className="absolute left-0 top-0 bottom-0 bg-blue-300 w-full z-0 origin-left" style={{width: '30%'}}></div>
+                             <span className="relative z-10 font-bold text-gray-700 ml-2">{activeConfig.resultLabel}</span>
+                             <span className="relative z-10 font-mono text-gray-600 mr-2">{(Number(conversions)||0).toLocaleString()}</span>
+                             <span className="absolute right-[-40px] group-hover:right-2 text-[10px] bg-white px-1 rounded shadow text-blue-600 font-bold transition-all">CR: {conversionRate.toFixed(2)}%</span>
+                         </div>
+                         <div className="flex justify-center"><div className="w-0.5 h-3 bg-gray-300"></div></div>
+
+                         <div className="bg-green-50 rounded p-2 flex justify-between items-center text-xs relative overflow-hidden mx-12 border border-green-200">
+                             <span className="relative z-10 font-bold text-green-800 ml-2">Đơn hàng (Sales)</span>
+                             <span className="relative z-10 font-mono text-green-700 font-bold mr-2">{estOrders.toLocaleString()}</span>
+                         </div>
+                     </div>
+
+                     {/* Revenue Box */}
+                     <div className="w-full md:w-1/2 bg-gray-50 rounded-xl p-6 flex flex-col justify-center items-center text-center border border-gray-100">
+                         <div className="text-gray-500 text-xs font-bold uppercase mb-2">Doanh thu ước tính</div>
+                         <div className="text-3xl font-extrabold text-gray-800 mb-2">
+                             {estRevenue.toLocaleString('vi-VN')} đ
+                         </div>
+                         <div className={`text-sm font-bold px-3 py-1 rounded-full ${roas >= 4 ? 'bg-green-100 text-green-700' : roas >= 2 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                             ROAS: {roas.toFixed(2)}x
+                         </div>
+                         
+                         <div className="mt-6 w-full pt-4 border-t border-gray-200 flex justify-between text-sm">
+                             <span className="text-gray-500">Lợi nhuận (Gross):</span>
+                             <span className={`font-bold ${estRevenue - totalBudget > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                 {(estRevenue - totalBudget).toLocaleString('vi-VN')} đ
+                             </span>
+                         </div>
+                     </div>
+                 </div>
+             </div>
+
          </div>
+
       </div>
     </div>
   );
