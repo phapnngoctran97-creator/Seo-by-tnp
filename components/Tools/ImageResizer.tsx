@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { 
   Move, Upload, Download, Lock, Unlock, RefreshCw, 
   Smartphone, Monitor, Clipboard, Layers, Image as ImageIcon, 
@@ -56,7 +56,10 @@ const ImageResizer: React.FC = () => {
   const [initialTransform, setInitialTransform] = useState<{x: number, y: number} | null>(null);
   const [dragAction, setDragAction] = useState<'move-image' | 'move-wm' | null>(null);
   
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Stage State
+  const [stageScale, setStageScale] = useState(1); // Scale factor to fit Output Canvas into UI Container
+  
+  const containerWrapperRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
   // Global Settings
@@ -87,6 +90,34 @@ const ImageResizer: React.FC = () => {
 
   // Helper to get active file
   const activeFile = files.find(f => f.id === selectedFileId) || files[0];
+  const outW = Number(width) || 1080;
+  const outH = Number(height) || 1080;
+
+  // --- Calculate Stage Scale (Fit to Screen) ---
+  useLayoutEffect(() => {
+    const calculateScale = () => {
+      if (containerWrapperRef.current) {
+        const { clientWidth, clientHeight } = containerWrapperRef.current;
+        // Add some padding
+        const padding = 40;
+        const availableW = clientWidth - padding;
+        const availableH = clientHeight - padding;
+
+        const scaleW = availableW / outW;
+        const scaleH = availableH / outH;
+        
+        // Fit contain
+        const newScale = Math.min(scaleW, scaleH, 1); // Max scale 1 (don't zoom in pixelated) unless user wants? Let's cap at 1 for UI niceness, or allow zoom?
+        // Actually, allowing > 1 is fine if output is tiny, but let's stick to fit.
+        // Better: Math.min(scaleW, scaleH) without cap 1 allows viewing 100px images on 1000px screen clearly? No, standard is fit-down.
+        setStageScale(Math.min(scaleW, scaleH)); 
+      }
+    };
+
+    calculateScale();
+    window.addEventListener('resize', calculateScale);
+    return () => window.removeEventListener('resize', calculateScale);
+  }, [outW, outH, files.length, activeFile]); // Recalc when output dims change
 
   // --- File Handling ---
 
@@ -214,21 +245,19 @@ const ImageResizer: React.FC = () => {
       const deltaX = e.clientX - dragStart.x;
       const deltaY = e.clientY - dragStart.y;
       
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
+      // CRITICAL: Adjust delta by the Stage Scale to map Screen Pixels -> Canvas Pixels
+      const realDeltaX = deltaX / stageScale;
+      const realDeltaY = deltaY / stageScale;
 
       if (dragAction === 'move-image') {
-          const outputW = Number(width) || 1080;
-          const scaleFactor = outputW / rect.width;
-          
           updateActiveTransform({
-              x: initialTransform.x + (deltaX * scaleFactor),
-              y: initialTransform.y + (deltaY * scaleFactor)
+              x: initialTransform.x + realDeltaX,
+              y: initialTransform.y + realDeltaY
           });
       } else if (dragAction === 'move-wm') {
-          // Calculate percentage change
-          const deltaPctX = (deltaX / rect.width) * 100;
-          const deltaPctY = (deltaY / rect.height) * 100;
+          // Calculate percentage change based on Output Size
+          const deltaPctX = (realDeltaX / outW) * 100;
+          const deltaPctY = (realDeltaY / outH) * 100;
           
           let newX = initialTransform.x + deltaPctX;
           let newY = initialTransform.y + deltaPctY;
@@ -269,11 +298,9 @@ const ImageResizer: React.FC = () => {
   };
 
   const fitImage = (type: 'contain' | 'cover') => {
-      if(!activeFile || !width || !height) return;
+      if(!activeFile || !outW || !outH) return;
       const imgW = activeFile.originalDims.w || 1000;
       const imgH = activeFile.originalDims.h || 1000;
-      const outW = Number(width);
-      const outH = Number(height);
 
       const scaleW = outW / imgW;
       const scaleH = outH / imgH;
@@ -289,13 +316,11 @@ const ImageResizer: React.FC = () => {
     if (files.length === 0) return;
     setIsProcessing(true);
 
-    const outW = Number(width) || 1080;
-    const outH = Number(height) || 1080;
-
     const processed = await Promise.all(files.map(async (fileData) => {
       return new Promise<ImageFile>((resolve) => {
         const img = new Image();
         img.src = fileData.preview;
+        img.crossOrigin = "anonymous";
         img.onload = () => {
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
@@ -304,17 +329,20 @@ const ImageResizer: React.FC = () => {
           canvas.height = outH;
 
           if (ctx) {
+            // High quality scaling
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+
             // Fill Background
             ctx.fillStyle = bgColor;
             ctx.fillRect(0, 0, outW, outH);
 
             // Apply Transform for Main Image
+            // Logic: Translate to center -> Apply Offset -> Scale -> Draw Image centered at Origin
             ctx.translate(outW / 2, outH / 2);
             ctx.translate(fileData.transform.x, fileData.transform.y);
             ctx.scale(fileData.transform.scale, fileData.transform.scale);
             
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
             ctx.drawImage(img, -img.width / 2, -img.height / 2);
             
             // Reset transform for Watermark
@@ -599,10 +627,12 @@ const ImageResizer: React.FC = () => {
             </div>
 
             {/* 2. MAIN INTERACTIVE CANVAS */}
-            <div className="bg-gray-100 border-x border-gray-200 flex-1 relative overflow-hidden flex items-center justify-center p-8 bg-[url('https://media.istockphoto.com/id/1226505703/vector/transparent-background-seamless-pattern-vector-stock-illustration.jpg?s=612x612&w=0&k=20&c=J9_e3T_u6sYq5t0VqA-L9p9Z9y-j7Z5Z9y-j7Z5Z9y.jpg')] select-none"
-                 onMouseMove={handleMouseMove}
-                 onMouseUp={handleMouseUp}
-                 onMouseLeave={handleMouseUp}
+            <div 
+                ref={containerWrapperRef}
+                className="bg-gray-100 border-x border-gray-200 flex-1 relative overflow-hidden flex items-center justify-center p-8 bg-[url('https://media.istockphoto.com/id/1226505703/vector/transparent-background-seamless-pattern-vector-stock-illustration.jpg?s=612x612&w=0&k=20&c=J9_e3T_u6sYq5t0VqA-L9p9Z9y-j7Z5Z9y-j7Z5Z9y.jpg')] select-none"
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
             >
                 {!activeFile ? (
                     <div className="text-center text-gray-400">
@@ -610,33 +640,38 @@ const ImageResizer: React.FC = () => {
                         <p>Chọn ảnh để chỉnh sửa</p>
                     </div>
                 ) : (
-                    // VISUAL OUTPUT FRAME (The "Window")
+                    // VIRTUAL STAGE: This represents the ACTUAL Output Canvas Dimensions (e.g., 1920x1080)
+                    // We simply scale it down visually to fit the screen using CSS Transform.
                     <div 
-                        ref={containerRef}
-                        className="relative shadow-2xl overflow-hidden bg-white group"
+                        className="relative shadow-2xl bg-white origin-center"
                         style={{
-                            aspectRatio: `${width || 1080} / ${height || 1080}`,
-                            width: 'auto',
-                            height: 'auto',
-                            maxWidth: '100%',
-                            maxHeight: '100%',
+                            width: `${outW}px`,
+                            height: `${outH}px`,
                             backgroundColor: bgColor,
-                            cursor: dragAction === 'move-wm' ? 'grabbing' : 'grab'
+                            transform: `scale(${stageScale})`,
+                            transition: dragAction ? 'none' : 'transform 0.2s ease-out', // Only animate scale changes (resize), not drags
                         }}
-                        onMouseDown={(e) => handleMouseDown(e, 'image')}
                     >
+                        {/* OVERLAY FOR MOUSE EVENTS (Capture interactions) */}
+                         <div 
+                            className="absolute inset-0 z-50"
+                            style={{ cursor: dragAction === 'move-wm' ? 'grabbing' : 'grab' }}
+                            onMouseDown={(e) => handleMouseDown(e, 'image')}
+                         />
+
                         {/* THE IMAGE LAYER */}
-                        <div className="w-full h-full flex items-center justify-center pointer-events-none">
+                        {/* Positioned centered, then transformed */}
+                        <div className="absolute top-1/2 left-1/2 w-0 h-0 pointer-events-none">
                             <img 
                                 ref={imgRef}
                                 src={activeFile.preview} 
                                 alt="Editable" 
                                 draggable={false}
                                 style={{
-                                    transform: `translate(${activeFile.transform.x}px, ${activeFile.transform.y}px) scale(${activeFile.transform.scale})`,
-                                    transition: dragAction ? 'none' : 'transform 0.1s ease-out',
-                                    transformOrigin: 'center center',
-                                    maxWidth: 'none'
+                                    // Logic: Translate relative to center of canvas -> Scale -> Center Image on its own pivot
+                                    transform: `translate(${activeFile.transform.x}px, ${activeFile.transform.y}px) scale(${activeFile.transform.scale}) translate(-50%, -50%)`,
+                                    maxWidth: 'none', // Allow it to overflow naturally
+                                    width: 'auto', // Use natural size
                                 }}
                             />
                         </div>
@@ -647,7 +682,10 @@ const ImageResizer: React.FC = () => {
                                 src={wmSettings.imageUrl}
                                 alt="Watermark"
                                 draggable={false}
-                                onMouseDown={(e) => handleMouseDown(e, 'wm')}
+                                onMouseDown={(e) => {
+                                    // Stop propagation to avoid dragging image
+                                    handleMouseDown(e, 'wm');
+                                }}
                                 style={{
                                     position: 'absolute',
                                     left: `${wmSettings.x}%`,
@@ -656,21 +694,15 @@ const ImageResizer: React.FC = () => {
                                     opacity: wmSettings.opacity,
                                     transform: 'translate(-50%, -50%)', // Anchor center
                                     cursor: 'move',
-                                    zIndex: 50,
-                                    border: dragAction === 'move-wm' ? '1px dashed #0ea5e9' : 'none'
+                                    zIndex: 60, // Above overlay
+                                    border: dragAction === 'move-wm' ? '2px dashed #0ea5e9' : 'none',
+                                    pointerEvents: 'auto'
                                 }}
                             />
                         )}
 
-                        {/* HOVER HINT */}
-                        {!dragAction && (
-                            <div className="absolute top-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 pointer-events-none z-40">
-                                <MousePointer2 size={12} /> Kéo ảnh hoặc Logo
-                            </div>
-                        )}
-
-                        {/* GRID OVERLAY */}
-                        <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-30 transition-opacity z-30">
+                        {/* GRID OVERLAY (Visual Only) */}
+                        <div className="absolute inset-0 pointer-events-none opacity-0 hover:opacity-30 transition-opacity z-40">
                              <div className="w-full h-full border border-sky-400"></div>
                              <div className="absolute top-1/2 left-0 w-full h-px bg-sky-400"></div>
                              <div className="absolute left-1/2 top-0 h-full w-px bg-sky-400"></div>
