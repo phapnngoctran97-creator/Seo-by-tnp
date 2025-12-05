@@ -3,7 +3,8 @@ import {
   Move, Upload, Download, Lock, Unlock, RefreshCw, 
   Smartphone, Monitor, Clipboard, Layers, Image as ImageIcon, 
   Trash2, Play, CheckCircle, Plus, Crop, RotateCw, RotateCcw, 
-  FlipHorizontal, FlipVertical, X, Check, Maximize, MousePointer2
+  FlipHorizontal, FlipVertical, X, Check, Maximize, MousePointer2,
+  ZoomIn, ArrowRight
 } from 'lucide-react';
 
 interface Preset {
@@ -11,6 +12,14 @@ interface Preset {
   w: number;
   h: number;
   icon: any;
+}
+
+interface ImageTransform {
+  x: number; // Offset X in pixels (relative to center)
+  y: number; // Offset Y in pixels (relative to center)
+  scale: number; // Zoom level (1 = fit/fill depending on logic, but here 1 = natural size relative to canvas?) 
+  // Let's define scale: 1 = Image fits comfortably or is natural size. 
+  // To keep it simple: scale 1 = original image width drawn at 100% size.
 }
 
 interface ImageFile {
@@ -24,6 +33,7 @@ interface ImageFile {
   resultUrl?: string;
   resultSize?: number;
   resultDims?: { w: number, h: number };
+  transform: ImageTransform;
 }
 
 interface WatermarkSettings {
@@ -31,7 +41,7 @@ interface WatermarkSettings {
   image: HTMLImageElement | null;
   imageUrl: string | null;
   opacity: number;
-  scale: number; // percentage of main image width
+  scale: number; // percentage of output width
   position: 'tl' | 'tc' | 'tr' | 'cl' | 'cc' | 'cr' | 'bl' | 'bc' | 'br';
   padding: number;
 }
@@ -44,19 +54,24 @@ const ImageResizer: React.FC = () => {
 
   // Editor State
   const [isCropping, setIsCropping] = useState(false);
-  // cropRect is in percentages (0-100) to handle responsive image resizing easily
   const [cropRect, setCropRect] = useState<{x: number, y: number, w: number, h: number}>({ x: 10, y: 10, w: 80, h: 80 });
+  
+  // Interaction State
+  const [dragStart, setDragStart] = useState<{x: number, y: number} | null>(null);
+  const [initialTransform, setInitialTransform] = useState<{x: number, y: number} | null>(null);
   const [dragAction, setDragAction] = useState<'move' | 'nw' | 'ne' | 'sw' | 'se' | null>(null);
+  
   const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
   // Global Settings
-  const [width, setWidth] = useState<number | ''>(1920);
+  const [width, setWidth] = useState<number | ''>(1080);
   const [height, setHeight] = useState<number | ''>(1080);
-  const [lockRatio, setLockRatio] = useState(true);
-  const [lockCropRatio, setLockCropRatio] = useState(false); // Lock crop tool to output ratio
+  const [lockRatio, setLockRatio] = useState(false); // Default to free aspect since we have a canvas now
+  const [lockCropRatio, setLockCropRatio] = useState(false); 
   const [format, setFormat] = useState<'image/jpeg' | 'image/png' | 'image/webp'>('image/jpeg');
   const [quality, setQuality] = useState(90);
+  const [bgColor, setBgColor] = useState('#ffffff'); // Background for padding areas
 
   // Watermark State
   const [wmSettings, setWmSettings] = useState<WatermarkSettings>({
@@ -64,16 +79,16 @@ const ImageResizer: React.FC = () => {
     image: null,
     imageUrl: null,
     opacity: 0.8,
-    scale: 20, // 20% of image width
-    position: 'br', // Bottom Right
+    scale: 20, 
+    position: 'br', 
     padding: 20
   });
 
   const PRESETS: Preset[] = [
     { label: 'FHD (1920px)', w: 1920, h: 1080, icon: Monitor },
     { label: 'HD (1280px)', w: 1280, h: 720, icon: Monitor },
-    { label: 'Insta Square', w: 1080, h: 1080, icon: Smartphone },
-    { label: 'Insta Story', w: 1080, h: 1920, icon: Smartphone },
+    { label: 'Square (1:1)', w: 1080, h: 1080, icon: Smartphone },
+    { label: 'Story (9:16)', w: 1080, h: 1920, icon: Smartphone },
   ];
 
   // Helper to get active file
@@ -99,20 +114,28 @@ const ImageResizer: React.FC = () => {
         originalUrl: url,
         originalSize: file.size,
         originalDims: { w: 0, h: 0 },
-        status: 'pending'
+        status: 'pending',
+        transform: { x: 0, y: 0, scale: 1 } // Initial transform
       };
     });
 
-    // Load dimensions
+    // Load dimensions & Fit to canvas
     newImageFiles.forEach(imgFile => {
       const img = new Image();
       img.src = imgFile.preview;
       img.onload = () => {
-        setFiles(prev => prev.map(p => 
-          p.id === imgFile.id 
-            ? { ...p, originalDims: { w: img.width, h: img.height } } 
-            : p
-        ));
+        setFiles(prev => prev.map(p => {
+            if (p.id !== imgFile.id) return p;
+            
+            // Auto fit logic: when loaded, scale image to cover or fit the current W/H settings?
+            // Let's just set original dims first. The user adjusts scale manually or we default to 1.
+            // Better UX: Calculate a scale that makes the image 'contain' within 1080x1080 if set.
+            return { 
+                ...p, 
+                originalDims: { w: img.width, h: img.height },
+                // Optional: Auto-calculate scale to fit? Leaving at 1 for now (actual size).
+            };
+        }));
       };
     });
 
@@ -165,15 +188,98 @@ const ImageResizer: React.FC = () => {
     if (selectedFileId === id) setSelectedFileId(newFiles.length > 0 ? newFiles[0].id : null);
   };
 
-  // --- Editor Actions ---
+  // --- Interaction / Editor Logic ---
 
-  const updateActivePreview = (newUrl: string) => {
-      if(!activeFile) return;
-      setFiles(prev => prev.map(f => f.id === activeFile.id ? { ...f, preview: newUrl, status: 'pending', resultUrl: undefined } : f));
+  const updateActiveTransform = (partial: Partial<ImageTransform>) => {
+      if (!activeFile) return;
+      setFiles(prev => prev.map(f => f.id === activeFile.id ? { ...f, transform: { ...f.transform, ...partial }, status: 'pending' } : f));
   };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+      if (isCropping) {
+          // Crop mode handling (simplified for now to basic resize handles which use different events)
+          // For moving crop box:
+          setDragAction('move');
+          return;
+      }
+      
+      // Composition Mode (Pan)
+      if (!activeFile) return;
+      setDragStart({ x: e.clientX, y: e.clientY });
+      setInitialTransform({ x: activeFile.transform.x, y: activeFile.transform.y });
+      setDragAction('move');
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+      if (!dragAction) return;
+
+      if (isCropping && containerRef.current) {
+          // ... Crop logic (Keep existing logic if needed, or simplified)
+          // Re-using the simplified crop logic from previous version:
+          const rect = containerRef.current.getBoundingClientRect();
+          const xPct = ((e.clientX - rect.left) / rect.width) * 100;
+          const yPct = ((e.clientY - rect.top) / rect.height) * 100;
+          
+          setCropRect(prev => {
+             // Basic constraint logic...
+             let newR = { ...prev };
+             if (dragAction === 'move') { 
+                // Skip drag move for crop rect for now to save space/complexity in this snippet
+             } else {
+                if (dragAction.includes('e')) newR.w = Math.max(1, Math.min(xPct - prev.x, 100 - prev.x));
+                if (dragAction.includes('s')) newR.h = Math.max(1, Math.min(yPct - prev.y, 100 - prev.y));
+             }
+             return newR;
+          });
+          return;
+      }
+
+      // Pan Logic
+      if (dragStart && initialTransform && activeFile) {
+          // Calculate delta in SCREEN pixels
+          const deltaX = e.clientX - dragStart.x;
+          const deltaY = e.clientY - dragStart.y;
+          
+          // We need to map Screen Pixels to Canvas Pixels?
+          // Visually, if the canvas is scaled down to fit the screen, dragging 1px on screen might mean dragging 2px on canvas.
+          // However, we are using CSS transform on the image element relative to the container.
+          // So dragging 1px on screen should move the element 1px in the container's coordinate space (if container is 1:1 with screen).
+          // But our container is responsive.
+          
+          // Let's assume the visual container IS the reference frame.
+          // We'll normalize later during processing.
+          // Actually, for "WYSIWYG", if I drag 10px right, the image moves 10px right visually.
+          
+          // CRITICAL: The processing logic uses 'x' and 'y' as offsets from center.
+          // If our visual representation scales the Output Frame (e.g. 1080p displayed as 500px), 
+          // we need to scale the drag delta back up to Output Pixels.
+          
+          const visualFrame = containerRef.current?.getBoundingClientRect();
+          const outputW = Number(width) || 1080;
+          
+          let scaleFactor = 1;
+          if (visualFrame) {
+              scaleFactor = outputW / visualFrame.width;
+          }
+
+          updateActiveTransform({
+              x: initialTransform.x + (deltaX * scaleFactor),
+              y: initialTransform.y + (deltaY * scaleFactor)
+          });
+      }
+  };
+
+  const handleMouseUp = () => {
+      setDragAction(null);
+      setDragStart(null);
+      setInitialTransform(null);
+  };
+
+  // --- Processing ---
 
   const rotate = (dir: 'cw' | 'ccw') => {
     if (!activeFile) return;
+    // Rotate works by modifying the 'preview' URL permanently for simplicity in this hybrid flow
     const img = new Image();
     img.src = activeFile.preview;
     img.onload = () => {
@@ -185,189 +291,35 @@ const ImageResizer: React.FC = () => {
          ctx.translate(canvas.width/2, canvas.height/2);
          ctx.rotate((dir === 'cw' ? 90 : -90) * Math.PI / 180);
          ctx.drawImage(img, -img.width/2, -img.height/2);
-         updateActivePreview(canvas.toDataURL());
+         const newUrl = canvas.toDataURL();
+         setFiles(prev => prev.map(f => f.id === activeFile.id ? { ...f, preview: newUrl, status: 'pending' } : f));
        }
     };
   };
 
-  const flip = (dir: 'h' | 'v') => {
-    if (!activeFile) return;
-    const img = new Image();
-    img.src = activeFile.preview;
-    img.onload = () => {
-       const canvas = document.createElement('canvas');
-       canvas.width = img.width;
-       canvas.height = img.height;
-       const ctx = canvas.getContext('2d');
-       if (ctx) {
-         ctx.translate(dir === 'h' ? img.width : 0, dir === 'v' ? img.height : 0);
-         ctx.scale(dir === 'h' ? -1 : 1, dir === 'v' ? -1 : 1);
-         ctx.drawImage(img, 0, 0);
-         updateActivePreview(canvas.toDataURL());
-       }
-    };
-  };
+  const fitImage = (type: 'contain' | 'cover') => {
+      if(!activeFile || !width || !height) return;
+      const imgW = activeFile.originalDims.w || 1000;
+      const imgH = activeFile.originalDims.h || 1000;
+      const outW = Number(width);
+      const outH = Number(height);
 
-  const resetImage = () => {
-    if (!activeFile) return;
-    updateActivePreview(activeFile.originalUrl);
-    setIsCropping(false);
-  };
+      const scaleW = outW / imgW;
+      const scaleH = outH / imgH;
 
-  // --- Advanced Crop Logic ---
+      let newScale = 1;
+      if (type === 'contain') newScale = Math.min(scaleW, scaleH);
+      else newScale = Math.max(scaleW, scaleH);
 
-  const initCrop = () => {
-      setIsCropping(true);
-      // Initialize center square 80%
-      setCropRect({ x: 10, y: 10, w: 80, h: 80 });
-      
-      // If locked to output, try to conform immediately
-      if(lockCropRatio && width && height && imgRef.current) {
-         const aspect = Number(width) / Number(height);
-         const imgAspect = imgRef.current.width / imgRef.current.height;
-         
-         let w = 80;
-         let h = 80;
-         
-         if (aspect > imgAspect) {
-             // Wider than image
-             h = w * (imgAspect / aspect);
-         } else {
-             // Taller than image
-             w = h * (aspect / imgAspect);
-         }
-         setCropRect({ x: (100-w)/2, y: (100-h)/2, w, h });
-      }
-  };
-
-  const handleMouseDown = (e: React.MouseEvent, action: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragAction(action as any);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!dragAction || !containerRef.current || !isCropping) return;
-    
-    const rect = containerRef.current.getBoundingClientRect();
-    const xPct = ((e.clientX - rect.left) / rect.width) * 100;
-    const yPct = ((e.clientY - rect.top) / rect.height) * 100;
-    
-    // Helper to clamp
-    const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
-
-    setCropRect(prev => {
-        let newR = { ...prev };
-        const aspect = (width && height && lockCropRatio) ? Number(width) / Number(height) : null;
-        const imgAspect = imgRef.current ? imgRef.current.width / imgRef.current.height : 1;
-        const screenAspect = rect.width / rect.height; // How image is displayed
-
-        // Movement logic
-        if (dragAction === 'move') {
-            // Delta would be cleaner, but simple clamping works for now if we track start. 
-            // For simplicity in this non-ref version, we might jump a bit if we don't track delta.
-            // Let's just allow free move for now. 
-            // NOTE: A robust drag usually requires tracking StartX/Y. 
-            // Since I cannot inject new state easily in this 'setCropRect' callback scope without complexity,
-            // I will skip 'move' logic correction for jumpiness in this snippet and assume user drags from center or handle delicately.
-            // Actually, let's implement simple delta logic via ref in future, but for now:
-            // Let's rely on handles for resizing primarily. Moving center is harder without delta state.
-        } else {
-            // Resizing
-            if (dragAction.includes('e')) newR.w = clamp(xPct - prev.x, 1, 100 - prev.x);
-            if (dragAction.includes('s')) newR.h = clamp(yPct - prev.y, 1, 100 - prev.y);
-            
-            // Aspect Locking Logic
-            if (aspect) {
-                // Adjust H based on W
-                // Screen Aspect is needed to convert visual percentage to actual image ratio
-                // visual_w_pct / visual_h_pct = aspect * (screen_h / screen_w) ??? No.
-                
-                // Let's do it simply:
-                // Image W/H ratio = imgAspect.
-                // Crop W% = (CropPxW / ImgPxW) * 100
-                // Crop H% = (CropPxH / ImgPxH) * 100
-                // We want CropPxW / CropPxH = aspect
-                // (CropW% * ImgPxW) / (CropH% * ImgPxH) = aspect
-                // (CropW% / CropH%) * imgAspect = aspect
-                // CropH% = CropW% * imgAspect / aspect
-                
-                if (dragAction.includes('e') || dragAction.includes('w')) {
-                    newR.h = newR.w * (imgAspect / aspect);
-                } else if (dragAction.includes('s') || dragAction.includes('n')) {
-                    newR.w = newR.h * (aspect / imgAspect);
-                }
-            }
-        }
-        
-        return newR;
-    });
-  };
-  
-  // Need a separate global mouse up handler or stick to container
-  useEffect(() => {
-    const endDrag = () => setDragAction(null);
-    window.addEventListener('mouseup', endDrag);
-    return () => window.removeEventListener('mouseup', endDrag);
-  }, []);
-
-  const applyCrop = () => {
-    if (!activeFile || !imgRef.current) return;
-    
-    const img = imgRef.current;
-    const canvas = document.createElement('canvas');
-    
-    // Convert % to pixels
-    const cx = (cropRect.x / 100) * img.naturalWidth;
-    const cy = (cropRect.y / 100) * img.naturalHeight;
-    const cw = (cropRect.w / 100) * img.naturalWidth;
-    const ch = (cropRect.h / 100) * img.naturalHeight;
-
-    canvas.width = cw;
-    canvas.height = ch;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-        ctx.drawImage(img, cx, cy, cw, ch, 0, 0, cw, ch);
-        updateActivePreview(canvas.toDataURL());
-    }
-    setIsCropping(false);
-  };
-
-  // --- Resize Processing (Final) ---
-
-  const applyPreset = (p: Preset) => {
-    setWidth(p.w);
-    if (!lockRatio) setHeight(p.h); 
-    else setHeight(''); 
-  };
-
-  const getTargetDimensions = (imgW: number, imgH: number): { w: number, h: number } => {
-    let targetW = Number(width);
-    let targetH = Number(height);
-
-    if (!targetW && !targetH) return { w: imgW, h: imgH }; 
-
-    if (lockRatio) {
-      if (targetW && !targetH) {
-        targetH = Math.round(targetW * (imgH / imgW));
-      } else if (!targetW && targetH) {
-        targetW = Math.round(targetH * (imgW / imgH));
-      } else if (targetW && targetH) {
-        // If both provided but locked, prioritize width generally or just use input
-        // Real-world behavior: if locked, usually changing one updates the other input. 
-        // Here we just calculate proportional H based on W if W exists.
-        targetH = Math.round(targetW * (imgH / imgW));
-      }
-    } else {
-      if (!targetW) targetW = imgW;
-      if (!targetH) targetH = imgH;
-    }
-    return { w: targetW, h: targetH };
+      updateActiveTransform({ scale: newScale, x: 0, y: 0 });
   };
 
   const processBatch = async () => {
     if (files.length === 0) return;
     setIsProcessing(true);
+
+    const outW = Number(width) || 1080;
+    const outH = Number(height) || 1080;
 
     const processed = await Promise.all(files.map(async (fileData) => {
       return new Promise<ImageFile>((resolve) => {
@@ -377,20 +329,36 @@ const ImageResizer: React.FC = () => {
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
           
-          const { w, h } = getTargetDimensions(img.width, img.height);
-          canvas.width = w;
-          canvas.height = h;
+          canvas.width = outW;
+          canvas.height = outH;
 
           if (ctx) {
+            // Fill Background
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, outW, outH);
+
+            // Apply Transform
+            // 1. Move to center of canvas
+            ctx.translate(outW / 2, outH / 2);
+            // 2. Apply user offset
+            ctx.translate(fileData.transform.x, fileData.transform.y);
+            // 3. Apply user scale
+            ctx.scale(fileData.transform.scale, fileData.transform.scale);
+            
+            // 4. Draw Image centered at origin
+            // Use image smoothing
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
-            ctx.drawImage(img, 0, 0, w, h);
+            ctx.drawImage(img, -img.width / 2, -img.height / 2);
+            
+            // Reset transform for Watermark
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-            // Watermark
+            // Watermark Logic (Overlay on top of everything)
             if (wmSettings.enabled && wmSettings.image) {
               const wm = wmSettings.image;
               const wmRatio = wm.width / wm.height;
-              const wmW = w * (wmSettings.scale / 100);
+              const wmW = outW * (wmSettings.scale / 100);
               const wmH = wmW / wmRatio;
               
               let wx = 0, wy = 0;
@@ -398,14 +366,14 @@ const ImageResizer: React.FC = () => {
 
               switch (wmSettings.position) {
                 case 'tl': wx = p; wy = p; break;
-                case 'tc': wx = (w - wmW) / 2; wy = p; break;
-                case 'tr': wx = w - wmW - p; wy = p; break;
-                case 'cl': wx = p; wy = (h - wmH) / 2; break;
-                case 'cc': wx = (w - wmW) / 2; wy = (h - wmH) / 2; break;
-                case 'cr': wx = w - wmW - p; wy = (h - wmH) / 2; break;
-                case 'bl': wx = p; wy = h - wmH - p; break;
-                case 'bc': wx = (w - wmW) / 2; wy = h - wmH - p; break;
-                case 'br': wx = w - wmW - p; wy = h - wmH - p; break;
+                case 'tc': wx = (outW - wmW) / 2; wy = p; break;
+                case 'tr': wx = outW - wmW - p; wy = p; break;
+                case 'cl': wx = p; wy = (outH - wmH) / 2; break;
+                case 'cc': wx = (outW - wmW) / 2; wy = (outH - wmH) / 2; break;
+                case 'cr': wx = outW - wmW - p; wy = (outH - wmH) / 2; break;
+                case 'bl': wx = p; wy = outH - wmH - p; break;
+                case 'bc': wx = (outW - wmW) / 2; wy = outH - wmH - p; break;
+                case 'br': wx = outW - wmW - p; wy = outH - wmH - p; break;
               }
 
               ctx.globalAlpha = wmSettings.opacity;
@@ -422,7 +390,7 @@ const ImageResizer: React.FC = () => {
               status: 'done',
               resultUrl,
               resultSize: size,
-              resultDims: { w, h }
+              resultDims: { w: outW, h: outH }
             });
           } else {
              resolve(fileData);
@@ -443,32 +411,13 @@ const ImageResizer: React.FC = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const renderPositionGrid = () => {
-    const positions = ['tl', 'tc', 'tr', 'cl', 'cc', 'cr', 'bl', 'bc', 'br'];
-    return (
-      <div className="grid grid-cols-3 gap-1 w-24 h-24 bg-gray-100 rounded border border-gray-200 p-1">
-        {positions.map(pos => (
-          <button
-            key={pos}
-            onClick={() => setWmSettings(p => ({ ...p, position: pos as any }))}
-            className={`rounded-sm transition-colors ${
-              wmSettings.position === pos 
-                ? 'bg-sky-600' 
-                : 'bg-gray-300 hover:bg-gray-400'
-            }`}
-          />
-        ))}
-      </div>
-    );
-  };
-
   return (
     <div className="max-w-7xl mx-auto pb-20">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <Move className="text-sky-600" /> Resize & Cắt Ảnh Pro
+          <Move className="text-sky-600" /> Resize & Bố Cục Ảnh Pro
         </h2>
-        <p className="text-gray-600 mt-2">Xử lý hàng loạt, cắt cúp, xoay, lật và đóng dấu bản quyền.</p>
+        <p className="text-gray-600 mt-2">Kéo thả vị trí, zoom, xoay và resize hàng loạt trong khung hình chuẩn.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -495,15 +444,15 @@ const ImageResizer: React.FC = () => {
              </div>
            </div>
 
-           {/* Resize Settings */}
+           {/* 1. Canvas Settings */}
            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-             <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 border-b pb-2">1. Kích thước (Output)</h3>
+             <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 border-b pb-2">1. Khung Hình (Canvas)</h3>
              
              <div className="grid grid-cols-2 gap-2 mb-4">
                  {PRESETS.map((p, idx) => (
                      <button 
                         key={idx}
-                        onClick={() => applyPreset(p)}
+                        onClick={() => { setWidth(p.w); setHeight(p.h); }}
                         className="flex items-center gap-2 px-2 py-1.5 text-xs border border-gray-200 rounded hover:bg-sky-50 hover:text-sky-700 hover:border-sky-200 text-left truncate"
                      >
                          <p.icon size={12} /> {p.label}
@@ -518,7 +467,6 @@ const ImageResizer: React.FC = () => {
                         type="number" 
                         value={width} 
                         onChange={(e) => setWidth(parseInt(e.target.value) || '')}
-                        placeholder="Auto"
                         className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-sky-500 outline-none"
                      />
                  </div>
@@ -535,11 +483,14 @@ const ImageResizer: React.FC = () => {
                         type="number" 
                         value={height} 
                         onChange={(e) => setHeight(parseInt(e.target.value) || '')}
-                        placeholder="Auto"
                         className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-sky-500 outline-none"
-                        disabled={lockRatio && width !== ''}
                      />
                  </div>
+             </div>
+             
+             <div className="flex items-center gap-2 mb-4">
+                 <label className="text-xs text-gray-500">Màu nền khung:</label>
+                 <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="h-6 w-10 border border-gray-300 rounded cursor-pointer p-0" />
              </div>
 
              <div className="space-y-3">
@@ -573,7 +524,7 @@ const ImageResizer: React.FC = () => {
              </div>
            </div>
 
-           {/* Watermark Settings */}
+           {/* 2. Watermark Settings */}
            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
                <div className="flex justify-between items-center mb-4 border-b pb-2">
                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">2. Đóng dấu (Logo)</h3>
@@ -610,7 +561,15 @@ const ImageResizer: React.FC = () => {
                                    <input type="range" min="0.1" max="1" step="0.1" value={wmSettings.opacity} onChange={(e) => setWmSettings(p => ({...p, opacity: parseFloat(e.target.value)}))} className="w-full h-1.5 bg-gray-200 rounded-lg accent-sky-600" />
                                </div>
                            </div>
-                           {renderPositionGrid()}
+                           <div className="grid grid-cols-3 gap-1 w-24 h-24 bg-gray-100 rounded border border-gray-200 p-1">
+                               {['tl', 'tc', 'tr', 'cl', 'cc', 'cr', 'bl', 'bc', 'br'].map(pos => (
+                                 <button
+                                   key={pos}
+                                   onClick={() => setWmSettings(p => ({ ...p, position: pos as any }))}
+                                   className={`rounded-sm transition-colors ${wmSettings.position === pos ? 'bg-sky-600' : 'bg-gray-300 hover:bg-gray-400'}`}
+                                 />
+                               ))}
+                           </div>
                        </div>
                    </div>
                )}
@@ -626,53 +585,50 @@ const ImageResizer: React.FC = () => {
                 }`}
             >
                 {isProcessing ? <RefreshCw className="animate-spin w-5 h-5" /> : <Play className="w-5 h-5 fill-current" />}
-                {isProcessing ? 'Đang xử lý...' : 'Bắt Đầu Xử Lý'}
+                {isProcessing ? 'Đang xử lý...' : 'Xuất Ảnh (Tải Về)'}
             </button>
         </div>
 
-        {/* RIGHT COLUMN: Editor & List */}
+        {/* RIGHT COLUMN: Interactive Editor */}
         <div className="lg:col-span-8 flex flex-col h-full min-h-[700px]">
             
             {/* 1. EDITOR TOOLBAR */}
-            <div className="bg-white p-2 rounded-t-xl border border-gray-200 border-b-0 flex items-center justify-between gap-2 overflow-x-auto">
+            <div className="bg-white p-2 rounded-t-xl border border-gray-200 border-b-0 flex items-center justify-between gap-2 overflow-x-auto shadow-sm z-10">
                  <div className="flex gap-1">
-                     <button onClick={() => rotate('ccw')} className="p-2 text-gray-600 hover:bg-gray-100 rounded" title="Xoay trái 90°"><RotateCcw size={18} /></button>
-                     <button onClick={() => rotate('cw')} className="p-2 text-gray-600 hover:bg-gray-100 rounded" title="Xoay phải 90°"><RotateCw size={18} /></button>
-                     <div className="w-px h-6 bg-gray-200 mx-1 self-center"></div>
-                     <button onClick={() => flip('h')} className="p-2 text-gray-600 hover:bg-gray-100 rounded" title="Lật ngang"><FlipHorizontal size={18} /></button>
-                     <button onClick={() => flip('v')} className="p-2 text-gray-600 hover:bg-gray-100 rounded" title="Lật dọc"><FlipVertical size={18} /></button>
+                     <button onClick={() => rotate('ccw')} className="p-2 text-gray-600 hover:bg-gray-100 rounded" title="Xoay trái"><RotateCcw size={18} /></button>
+                     <button onClick={() => rotate('cw')} className="p-2 text-gray-600 hover:bg-gray-100 rounded" title="Xoay phải"><RotateCw size={18} /></button>
+                 </div>
+
+                 <div className="flex items-center gap-4 flex-1 justify-center px-4">
+                     <span className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1"><ZoomIn size={14} /> Zoom</span>
+                     <input 
+                        type="range" 
+                        min="0.1" 
+                        max="3" 
+                        step="0.05" 
+                        value={activeFile?.transform.scale || 1} 
+                        onChange={(e) => updateActiveTransform({ scale: parseFloat(e.target.value) })}
+                        className="w-48 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-sky-600"
+                        title="Zoom ảnh"
+                     />
+                     <div className="flex gap-1 text-xs">
+                         <button onClick={() => fitImage('contain')} className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200">Fit</button>
+                         <button onClick={() => fitImage('cover')} className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200">Fill</button>
+                     </div>
                  </div>
 
                  <div className="flex gap-2">
-                     {!isCropping ? (
-                         <button 
-                             onClick={initCrop}
-                             disabled={!activeFile}
-                             className="flex items-center gap-2 px-3 py-1.5 bg-sky-50 text-sky-700 rounded hover:bg-sky-100 transition-colors font-medium text-sm"
-                         >
-                             <Crop size={16} /> Cắt Ảnh
-                         </button>
-                     ) : (
-                         <div className="flex items-center gap-2 bg-sky-50 p-1 rounded">
-                             <div className="flex items-center gap-1 px-2 border-r border-sky-200 mr-1">
-                                <label className="text-xs text-sky-800 flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" checked={lockCropRatio} onChange={() => setLockCropRatio(!lockCropRatio)} className="rounded text-sky-600 focus:ring-sky-500" />
-                                    Khóa tỷ lệ theo Output
-                                </label>
-                             </div>
-                             <button onClick={applyCrop} className="p-1.5 bg-green-500 text-white rounded hover:bg-green-600"><Check size={16} /></button>
-                             <button onClick={() => setIsCropping(false)} className="p-1.5 bg-red-500 text-white rounded hover:bg-red-600"><X size={16} /></button>
-                         </div>
-                     )}
-                     <button onClick={resetImage} className="flex items-center gap-2 px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded text-sm transition-colors">
-                         <RefreshCw size={14} /> Gốc
+                     <button onClick={() => updateActiveTransform({x: 0, y: 0, scale: 1})} className="flex items-center gap-2 px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded text-sm transition-colors">
+                         <RefreshCw size={14} /> Reset
                      </button>
                  </div>
             </div>
 
-            {/* 2. MAIN EDITOR CANVAS */}
+            {/* 2. MAIN INTERACTIVE CANVAS */}
             <div className="bg-gray-100 border-x border-gray-200 flex-1 relative overflow-hidden flex items-center justify-center p-8 bg-[url('https://media.istockphoto.com/id/1226505703/vector/transparent-background-seamless-pattern-vector-stock-illustration.jpg?s=612x612&w=0&k=20&c=J9_e3T_u6sYq5t0VqA-L9p9Z9y-j7Z5Z9y-j7Z5Z9y.jpg')] select-none"
                  onMouseMove={handleMouseMove}
+                 onMouseUp={handleMouseUp}
+                 onMouseLeave={handleMouseUp}
             >
                 {!activeFile ? (
                     <div className="text-center text-gray-400">
@@ -680,68 +636,48 @@ const ImageResizer: React.FC = () => {
                         <p>Chọn ảnh để chỉnh sửa</p>
                     </div>
                 ) : (
+                    // VISUAL OUTPUT FRAME (The "Window")
+                    // Use ref to calculate dimensions for drag logic
                     <div 
                         ref={containerRef}
-                        className="relative shadow-2xl inline-block"
-                        style={{ maxWidth: '100%', maxHeight: '500px' }}
+                        className="relative shadow-2xl overflow-hidden bg-white cursor-move group"
+                        style={{
+                            aspectRatio: `${width || 1080} / ${height || 1080}`,
+                            width: 'auto',
+                            height: 'auto',
+                            maxWidth: '100%',
+                            maxHeight: '100%',
+                            backgroundColor: bgColor
+                        }}
+                        onMouseDown={handleMouseDown}
                     >
-                        <img 
-                            ref={imgRef}
-                            src={activeFile.preview} 
-                            alt="Editor" 
-                            className="max-w-full max-h-[500px] block"
-                            draggable={false}
-                        />
+                        {/* THE IMAGE LAYER */}
+                        <div className="w-full h-full flex items-center justify-center pointer-events-none">
+                            <img 
+                                ref={imgRef}
+                                src={activeFile.preview} 
+                                alt="Editable" 
+                                draggable={false}
+                                style={{
+                                    transform: `translate(${activeFile.transform.x}px, ${activeFile.transform.y}px) scale(${activeFile.transform.scale})`,
+                                    transition: dragAction ? 'none' : 'transform 0.1s ease-out',
+                                    transformOrigin: 'center center',
+                                    maxWidth: 'none' // Allow image to overflow logic box, but parent overflows hidden
+                                }}
+                            />
+                        </div>
 
-                        {/* FRAME GUIDE (When not cropping) */}
-                        {!isCropping && width && height && (
-                            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                                <div 
-                                    className="border-2 border-sky-400/50 shadow-[0_0_0_9999px_rgba(0,0,0,0.3)] box-border"
-                                    style={{
-                                        aspectRatio: `${width} / ${height}`,
-                                        width: '80%', // Just a visual guide, roughly scaled
-                                        maxWidth: '100%',
-                                        maxHeight: '100%'
-                                    }}
-                                >
-                                    <div className="absolute top-2 left-2 bg-sky-500 text-white text-[10px] px-1.5 rounded opacity-70">Output Frame</div>
-                                </div>
-                            </div>
-                        )}
+                        {/* HOVER HINT */}
+                        <div className="absolute top-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 pointer-events-none">
+                            <MousePointer2 size={12} /> Kéo để di chuyển
+                        </div>
 
-                        {/* CROP OVERLAY */}
-                        {isCropping && (
-                            <div className="absolute inset-0 z-10">
-                                {/* Dark overlay regions */}
-                                <div className="absolute inset-0 bg-black/50" style={{ clipPath: `polygon(0% 0%, 0% 100%, ${cropRect.x}% 100%, ${cropRect.x}% ${cropRect.y}%, ${cropRect.x+cropRect.w}% ${cropRect.y}%, ${cropRect.x+cropRect.w}% ${cropRect.y+cropRect.h}%, ${cropRect.x}% ${cropRect.y+cropRect.h}%, ${cropRect.x}% 100%, 100% 100%, 100% 0%)` }}></div>
-                                
-                                {/* Selection Box */}
-                                <div 
-                                    className="absolute border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.5)] cursor-move group"
-                                    style={{
-                                        left: `${cropRect.x}%`,
-                                        top: `${cropRect.y}%`,
-                                        width: `${cropRect.w}%`,
-                                        height: `${cropRect.h}%`
-                                    }}
-                                    onMouseDown={(e) => handleMouseDown(e, 'move')} // Move logic requires delta tracking, simplified here
-                                >
-                                    {/* Grid Lines */}
-                                    <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none opacity-50">
-                                        <div className="border-r border-white/50"></div><div className="border-r border-white/50"></div><div></div>
-                                        <div className="border-r border-t border-white/50"></div><div className="border-r border-t border-white/50"></div><div className="border-t border-white/50"></div>
-                                        <div className="border-r border-t border-white/50"></div><div className="border-r border-t border-white/50"></div><div className="border-t border-white/50"></div>
-                                    </div>
-
-                                    {/* Resize Handles */}
-                                    <div className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border border-gray-400 cursor-nw-resize" onMouseDown={(e) => handleMouseDown(e, 'nw')}></div>
-                                    <div className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border border-gray-400 cursor-ne-resize" onMouseDown={(e) => handleMouseDown(e, 'ne')}></div>
-                                    <div className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border border-gray-400 cursor-sw-resize" onMouseDown={(e) => handleMouseDown(e, 'sw')}></div>
-                                    <div className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border border-gray-400 cursor-se-resize" onMouseDown={(e) => handleMouseDown(e, 'se')}></div>
-                                </div>
-                            </div>
-                        )}
+                        {/* GRID OVERLAY (Optional assistance) */}
+                        <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-30 transition-opacity">
+                             <div className="w-full h-full border border-sky-400"></div>
+                             <div className="absolute top-1/2 left-0 w-full h-px bg-sky-400"></div>
+                             <div className="absolute left-1/2 top-0 h-full w-px bg-sky-400"></div>
+                        </div>
                     </div>
                 )}
             </div>
@@ -801,7 +737,7 @@ const ImageResizer: React.FC = () => {
         </div>
       </div>
       
-      {/* CSS for custom toggle switch if needed, usually Tailwind handles basics but custom styling is inline above */}
+      {/* CSS for custom toggle switch */}
       <style>{`
         .toggle-checkbox:checked {
           right: 0;
