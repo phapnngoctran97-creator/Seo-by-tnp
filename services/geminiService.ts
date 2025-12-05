@@ -329,20 +329,38 @@ export const generateLandingLayout = async (
 ): Promise<string> => {
   const ai = getAiClient();
   const prompt = `
-    Hãy thiết kế một bố cục (Layout) Landing Page chuyển đổi cao (High-converting) cho sản phẩm: "${product}" trong ngành "${industry}".
-    
-    Sử dụng mô hình AIDA hoặc PAS. Liệt kê từng Section (Phần) theo thứ tự từ trên xuống dưới.
-    Với mỗi Section, hãy mô tả:
-    - Tên Section (Ví dụ: Hero Section, Social Proof...).
-    - Nội dung chính cần có (Headline gợi ý, hình ảnh gì, nút bấm gì).
-    - Lý do tại sao cần Section này.
+    Bạn là một Senior Frontend Developer và UI/UX Designer.
+    Hãy viết một trang Landing Page (Sales Page) hoàn chỉnh bằng HTML5 và Tailwind CSS cho:
+    - Sản phẩm: "${product}"
+    - Ngành hàng: "${industry}"
 
-    Trình bày dạng Markdown rõ ràng.
+    Yêu cầu kỹ thuật:
+    1. Chỉ trả về mã HTML (không có Markdown backticks, không giải thích).
+    2. Bao gồm link CDN Tailwind CSS trong thẻ <head>: <script src="https://cdn.tailwindcss.com"></script>
+    3. Font chữ: Sử dụng font 'Inter' từ Google Fonts.
+    4. Cấu trúc AIDA:
+       - Header (Logo, Nav, CTA).
+       - Hero Section (Headline mạnh mẽ, Subheadline, CTA Button, Ảnh minh họa placeholder).
+       - Problem Section (Nêu vấn đề khách hàng gặp phải).
+       - Solution/Benefits Section (Lợi ích sản phẩm, Grid 3 cột).
+       - Social Proof (Testimonials/Reviews).
+       - Pricing/Offer Section.
+       - FAQ.
+       - Footer.
+    5. Hình ảnh: Sử dụng ảnh placeholder từ source.unsplash.com hoặc placehold.co với keyword liên quan đến "${industry}".
+    6. Thiết kế: Hiện đại, bo tròn (rounded-xl), đổ bóng (shadow-lg), gradient background cho Hero section.
+
+    Output format: Raw HTML code string starting with <!DOCTYPE html>.
   `;
   
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash",
     contents: prompt
   });
-  return response.text || "Lỗi tạo layout.";
+  
+  // Clean up if AI returns markdown wrapper
+  let code = response.text || "";
+  code = code.replace(/```html/g, "").replace(/```/g, "").trim();
+  
+  return code || "Lỗi tạo layout.";
 };
