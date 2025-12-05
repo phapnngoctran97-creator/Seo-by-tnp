@@ -1,3 +1,4 @@
+
 export enum ToolType {
   DASHBOARD = 'DASHBOARD',
   // SEO Tools
@@ -19,7 +20,14 @@ export enum ToolType {
   BG_REMOVER = 'BG_REMOVER',
   IMG_RESIZER = 'IMG_RESIZER',
   BANNER_GEN = 'BANNER_GEN',
-  IMG_FILTER = 'IMG_FILTER'
+  IMG_FILTER = 'IMG_FILTER',
+
+  // Ads Tools
+  ADS_STRUCTURE = 'ADS_STRUCTURE',
+  ADS_CONTENT = 'ADS_CONTENT',
+  LANDING_LAYOUT = 'LANDING_LAYOUT',
+  ADS_CALCULATOR = 'ADS_CALCULATOR',
+  BUDGET_PLANNER = 'BUDGET_PLANNER'
 }
 
 export interface KeywordData {

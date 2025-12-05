@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 
 const getAiClient = () => {
@@ -255,4 +256,93 @@ export const gradeSeoContent = async (
     console.error("Gemini SEO Grader Error:", error);
     throw error;
   }
+};
+
+// --- ADS TOOLS ---
+
+export const generateAdsStructure = async (
+  product: string,
+  platform: 'Facebook' | 'Google',
+  goal: string
+): Promise<string> => {
+  const ai = getAiClient();
+  const prompt = `
+    Bạn là chuyên gia quảng cáo ${platform} Ads (Media Buyer). Hãy thiết lập một cấu trúc chiến dịch (Campaign Structure) tối ưu cho:
+    - Sản phẩm: "${product}"
+    - Mục tiêu: "${goal}"
+
+    Hãy trình bày dưới dạng cây thư mục Markdown chi tiết như sau:
+    
+    **Campaign:** [Tên chiến dịch - Mục tiêu]
+    
+    **Ad Set 1: [Nhóm đối tượng A - Ví dụ: Cold Traffic/Interests]**
+    - Target: Độ tuổi, Vị trí, Sở thích cụ thể...
+    - Ngân sách đề xuất (tỷ lệ %).
+      - **Ad 1 (Format: Video/Image):** Angle (Góc độ tiếp cận)...
+      - **Ad 2:** ...
+    
+    **Ad Set 2: [Nhóm đối tượng B - Ví dụ: Lookalike/Retargeting]**
+    ...
+
+    Lưu ý: Giải thích ngắn gọn tại sao lại chia như vậy ở cuối.
+  `;
+  
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt
+  });
+  return response.text || "Lỗi tạo cấu trúc.";
+};
+
+export const generateAdsContent = async (
+  product: string,
+  audience: string,
+  angle: string
+): Promise<string> => {
+  const ai = getAiClient();
+  const prompt = `
+    Viết nội dung quảng cáo Facebook/Google Ads cho:
+    - Sản phẩm: "${product}"
+    - Đối tượng khách hàng: "${audience}"
+    - Góc độ (Angle/Pain point): "${angle}"
+
+    Hãy tạo ra 3 phiên bản nội dung quảng cáo khác nhau. 
+    Với mỗi phiên bản, hãy cung cấp đầy đủ:
+    1. Primary Text (Nội dung chính - Có icon hấp dẫn).
+    2. Headline (Tiêu đề - Ngắn gọn, giật tít).
+    3. Description (Mô tả phụ cho link).
+    4. Call to Action (Nút kêu gọi).
+    
+    Trình bày dạng Markdown.
+  `;
+  
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt
+  });
+  return response.text || "Lỗi tạo nội dung.";
+};
+
+export const generateLandingLayout = async (
+  product: string,
+  industry: string
+): Promise<string> => {
+  const ai = getAiClient();
+  const prompt = `
+    Hãy thiết kế một bố cục (Layout) Landing Page chuyển đổi cao (High-converting) cho sản phẩm: "${product}" trong ngành "${industry}".
+    
+    Sử dụng mô hình AIDA hoặc PAS. Liệt kê từng Section (Phần) theo thứ tự từ trên xuống dưới.
+    Với mỗi Section, hãy mô tả:
+    - Tên Section (Ví dụ: Hero Section, Social Proof...).
+    - Nội dung chính cần có (Headline gợi ý, hình ảnh gì, nút bấm gì).
+    - Lý do tại sao cần Section này.
+
+    Trình bày dạng Markdown rõ ràng.
+  `;
+  
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt
+  });
+  return response.text || "Lỗi tạo layout.";
 };

@@ -1,10 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
 import { ToolType } from '../types';
 import { 
   Sparkles, Search, Zap, Network, QrCode, ArrowRight, 
   FileText, Image as ImageIcon, BookOpen, X,
   Crop, Eraser, Move, Palette, Aperture, ImagePlus, List, Type,
-  Clock, Timer, Users, Globe, Activity, ClipboardCheck
+  Clock, Timer, Users, Globe, Activity, ClipboardCheck,
+  Megaphone, Target, Calculator, Layout, PieChart
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -90,6 +92,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
   };
 
+  const adsTools: ToolItem[] = [
+    { id: ToolType.ADS_STRUCTURE, title: 'Tạo Cấu Trúc Camp', desc: 'AI tạo sơ đồ chiến dịch.', icon: Network, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { id: ToolType.ADS_CONTENT, title: 'Viết Content Ads', desc: 'Headline & Copywriting.', icon: Megaphone, color: 'text-orange-600', bg: 'bg-orange-50' },
+    { id: ToolType.LANDING_LAYOUT, title: 'Layout Landing Page', desc: 'Gợi ý cấu trúc sales page.', icon: Layout, color: 'text-purple-600', bg: 'bg-purple-50' },
+    { id: ToolType.ADS_CALCULATOR, title: 'Máy Tính Ads', desc: 'Tính ROAS, CPA, CAC.', icon: Calculator, color: 'text-teal-600', bg: 'bg-teal-50' },
+    { id: ToolType.BUDGET_PLANNER, title: 'Kế Hoạch Ngân Sách', desc: 'Dự tính chi tiêu.', icon: PieChart, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+  ];
+
   const seoTools: ToolItem[] = [
     { id: ToolType.SEO_GRADER, title: 'Chấm Điểm SEO', desc: 'Chuẩn RankMath/Yoast.', icon: ClipboardCheck, color: 'text-blue-600', bg: 'bg-blue-50' },
     { id: ToolType.META_GEN, title: 'Tạo Meta Description', desc: 'AI tạo mô tả chuẩn SEO.', icon: Sparkles, color: 'text-indigo-600', bg: 'bg-indigo-50' },
@@ -115,6 +125,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   ];
 
   const categories: Category[] = [
+    {
+      id: 'ads',
+      title: 'Quảng Cáo (Ads)',
+      description: 'Công cụ hỗ trợ Meta Ads, Google Ads: Cấu trúc, Content, Ngân sách.',
+      icon: Megaphone,
+      gradient: 'from-orange-500 to-red-600',
+      tools: adsTools
+    },
     {
       id: 'seo',
       title: 'Công Cụ SEO',
@@ -228,7 +246,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       </div>
 
       {/* Main Categories Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {categories.map((cat) => {
           const Icon = cat.icon;
           return (
@@ -240,16 +258,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               <div className={`absolute inset-0 bg-gradient-to-br ${cat.gradient} opacity-90 group-hover:opacity-100 transition-opacity`} />
               <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-repeat" />
               
-              <div className="relative p-8 h-full flex flex-col justify-between z-10 text-white">
+              <div className="relative p-6 h-full flex flex-col justify-between z-10 text-white">
                  <div>
-                    <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-6 shadow-inner group-hover:scale-110 transition-transform duration-500">
-                       <Icon className="w-8 h-8 text-white" />
+                    <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mb-4 shadow-inner group-hover:scale-110 transition-transform duration-500">
+                       <Icon className="w-6 h-6 text-white" />
                     </div>
-                    <h2 className="text-2xl font-bold mb-2">{cat.title}</h2>
-                    <p className="text-sm text-white/80 font-medium leading-relaxed">{cat.description}</p>
+                    <h2 className="text-xl font-bold mb-2">{cat.title}</h2>
+                    <p className="text-xs text-white/80 font-medium leading-relaxed line-clamp-3">{cat.description}</p>
                  </div>
-                 <div className="flex items-center gap-2 font-bold text-sm bg-white/20 w-fit px-4 py-2 rounded-full backdrop-blur-md group-hover:bg-white group-hover:text-indigo-600 transition-colors">
-                    Xem {cat.tools.length} công cụ <ArrowRight className="w-4 h-4" />
+                 <div className="flex items-center gap-2 font-bold text-xs bg-white/20 w-fit px-3 py-1.5 rounded-full backdrop-blur-md group-hover:bg-white group-hover:text-indigo-600 transition-colors">
+                    {cat.tools.length} công cụ <ArrowRight className="w-3 h-3" />
                  </div>
               </div>
             </button>
@@ -260,7 +278,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       {/* Footer Info */}
       <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 text-center text-gray-500 text-sm">
          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-            <strong className="block text-xl text-gray-900 mb-1">{seoTools.length + graphicTools.length + textTools.length}</strong>
+            <strong className="block text-xl text-gray-900 mb-1">{seoTools.length + graphicTools.length + textTools.length + adsTools.length}</strong>
             Công cụ tích hợp
          </div>
          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">

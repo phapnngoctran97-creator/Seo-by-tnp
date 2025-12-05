@@ -1,10 +1,11 @@
+
 import React, { useState } from 'react';
 import { NavGroup, ToolType } from '../types';
 import { 
   LayoutDashboard, Sparkles, Search, Zap, Network, QrCode, 
   Settings, Key, ChevronDown, ChevronRight, FileText, 
   Image as ImageIcon, BookOpen, Crop, Eraser, Move, Palette, Aperture, List,
-  ClipboardCheck
+  ClipboardCheck, Megaphone, Target, Calculator, Layout, PieChart
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -18,6 +19,16 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenS
   const [expandedGroup, setExpandedGroup] = useState<string | null>('SEO Tools');
 
   const navGroups: NavGroup[] = [
+    {
+      title: 'Quảng Cáo (Ads)',
+      items: [
+        { id: ToolType.ADS_STRUCTURE, label: 'Tạo Cấu Trúc Camp', icon: Network, description: 'Sơ đồ chiến dịch' },
+        { id: ToolType.ADS_CONTENT, label: 'Viết Content Ads', icon: Megaphone, description: 'Headline & Copy' },
+        { id: ToolType.LANDING_LAYOUT, label: 'Gợi Ý Landing Page', icon: Layout, description: 'Layout chuyển đổi' },
+        { id: ToolType.ADS_CALCULATOR, label: 'Tính ROAS/CPA', icon: Calculator, description: 'Máy tính Ads' },
+        { id: ToolType.BUDGET_PLANNER, label: 'Dự Tính Ngân Sách', icon: PieChart, description: 'Kế hoạch chi tiêu' },
+      ]
+    },
     {
       title: 'SEO Tools',
       items: [

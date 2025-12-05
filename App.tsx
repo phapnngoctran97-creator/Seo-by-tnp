@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import MetaGenerator from './components/Tools/MetaGenerator';
@@ -17,6 +18,12 @@ import BgRemover from './components/Tools/BgRemover';
 import ImageResizer from './components/Tools/ImageResizer';
 import BannerCreator from './components/Tools/BannerCreator';
 import ImageFilter from './components/Tools/ImageFilter';
+// Ads Tools
+import AdsStructureGen from './components/Tools/AdsStructureGen';
+import AdsContentGen from './components/Tools/AdsContentGen';
+import LandingLayoutGen from './components/Tools/LandingLayoutGen';
+import AdsCalculator from './components/Tools/AdsCalculator';
+import BudgetPlanner from './components/Tools/BudgetPlanner';
 
 import Dashboard from './components/Dashboard';
 import ApiKeyModal from './components/ApiKeyModal';
@@ -50,6 +57,13 @@ const App: React.FC = () => {
       case ToolType.IMG_RESIZER: return <ImageResizer />;
       case ToolType.BANNER_GEN: return <BannerCreator />;
       case ToolType.IMG_FILTER: return <ImageFilter />;
+
+      // Ads Tools
+      case ToolType.ADS_STRUCTURE: return <AdsStructureGen />;
+      case ToolType.ADS_CONTENT: return <AdsContentGen />;
+      case ToolType.LANDING_LAYOUT: return <LandingLayoutGen />;
+      case ToolType.ADS_CALCULATOR: return <AdsCalculator />;
+      case ToolType.BUDGET_PLANNER: return <BudgetPlanner />;
       
       default: return <Dashboard onNavigate={setActiveTool} />;
     }
