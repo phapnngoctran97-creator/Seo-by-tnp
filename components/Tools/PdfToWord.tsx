@@ -8,7 +8,8 @@ import {
 
 const PdfToWord: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
-  const [content, setContent] = useState<string>('');
+  // Changed from 'content' to 'initialHtml' to clarify it seeds the editor
+  const [initialHtml, setInitialHtml] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [copied, setCopied] = useState(false);
@@ -37,7 +38,7 @@ const PdfToWord: React.FC = () => {
 
     setIsProcessing(true);
     setProgress(10);
-    setContent('');
+    setInitialHtml(''); // Clear old content
 
     try {
         const arrayBuffer = await fileToProcess.arrayBuffer();
@@ -97,10 +98,7 @@ const PdfToWord: React.FC = () => {
             fullHtml += pageHtml;
         }
 
-        setContent(fullHtml);
-        if(editorRef.current) {
-            editorRef.current.innerHTML = fullHtml;
-        }
+        setInitialHtml(fullHtml);
         setProgress(100);
         setTimeout(() => setIsProcessing(false), 500);
 
@@ -136,6 +134,9 @@ const PdfToWord: React.FC = () => {
   const handleDownload = () => {
       if (!editorRef.current) return;
       
+      // Get content directly from DOM to ensure we have the latest edits
+      const currentContent = editorRef.current.innerHTML;
+      
       const preHtml = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
       <head>
         <meta charset='utf-8'>
@@ -147,7 +148,7 @@ const PdfToWord: React.FC = () => {
       </head><body>`;
       
       const postHtml = "</body></html>";
-      const html = preHtml + editorRef.current.innerHTML + postHtml;
+      const html = preHtml + currentContent + postHtml;
 
       const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
       const url = URL.createObjectURL(blob);
@@ -166,7 +167,6 @@ const PdfToWord: React.FC = () => {
 
   const handleCopyContent = () => {
       if (editorRef.current) {
-          // Copy text content
           navigator.clipboard.writeText(editorRef.current.innerText).then(() => {
               setCopied(true);
               setTimeout(() => setCopied(false), 2000);
@@ -223,7 +223,7 @@ const PdfToWord: React.FC = () => {
                 <h3 className="font-bold text-gray-700 text-sm uppercase">Công cụ</h3>
                 <button 
                     onClick={handleCopyContent}
-                    disabled={!content}
+                    disabled={!initialHtml}
                     className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-all text-sm font-medium text-gray-700"
                 >
                     <span className="flex items-center gap-2"><Copy size={16}/> Copy Văn Bản</span>
@@ -236,9 +236,9 @@ const PdfToWord: React.FC = () => {
 
             <button 
                 onClick={handleDownload}
-                disabled={!content || isProcessing}
+                disabled={!initialHtml || isProcessing}
                 className={`w-full py-4 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all mt-auto ${
-                    !content || isProcessing 
+                    !initialHtml || isProcessing 
                     ? 'bg-gray-300 cursor-not-allowed' 
                     : 'bg-blue-600 hover:bg-blue-700 hover:-translate-y-1'
                 }`}
@@ -289,15 +289,18 @@ const PdfToWord: React.FC = () => {
                         <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
                         <p className="text-gray-500 font-medium">Đang chuyển đổi PDF...</p>
                     </div>
-                ) : !content ? (
+                ) : !initialHtml ? (
                     <div className="w-[21cm] h-[29.7cm] bg-white shadow-xl flex flex-col items-center justify-center text-gray-300 select-none">
                         <FileText className="w-24 h-24 mb-4 opacity-20" />
                         <p className="text-lg">Văn bản xem trước sẽ hiện ở đây</p>
                     </div>
                 ) : (
                     <div 
+                        key={file?.name || 'editor'} // Critical: Force remount on new file
                         ref={editorRef}
                         contentEditable
+                        suppressContentEditableWarning
+                        dangerouslySetInnerHTML={{ __html: initialHtml }}
                         className="bg-white shadow-2xl outline-none text-gray-900 selection:bg-blue-200"
                         style={{
                             width: '21cm', // A4 Width
@@ -308,7 +311,6 @@ const PdfToWord: React.FC = () => {
                             fontFamily: 'Times New Roman, serif',
                             lineHeight: '1.5'
                         }}
-                        onInput={(e) => setContent(e.currentTarget.innerHTML)}
                     />
                 )}
             </div>
