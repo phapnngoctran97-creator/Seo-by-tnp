@@ -6,7 +6,7 @@ import {
   Settings, Key, ChevronDown, ChevronRight, FileText, 
   Image as ImageIcon, BookOpen, Facebook, Eraser, Move, Palette, Aperture, List,
   ClipboardCheck, Megaphone, Target, Calculator, Layout, PieChart, Presentation,
-  Pipette, Link, BarChart3, TrendingUp, DollarSign, Activity
+  Pipette, Link, BarChart3, TrendingUp, DollarSign, Activity, FileType
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -17,7 +17,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenSettings }) => {
-  const [expandedGroup, setExpandedGroup] = useState<string | null>('Đồ họa & Hình ảnh');
+  const [expandedGroup, setExpandedGroup] = useState<string | null>('Xử Lý Văn Bản');
 
   const navGroups: NavGroup[] = [
     {
@@ -68,6 +68,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenS
     {
       title: 'Xử Lý Văn Bản',
       items: [
+        { id: ToolType.PDF_TO_WORD, label: 'Chuyển PDF sang Word', icon: FileType, description: 'Convert PDF' },
         { id: ToolType.WORD_COUNTER, label: 'Đếm Từ & Ký Tự', icon: FileText, description: 'Thống kê văn bản' },
         { id: ToolType.PLAGIARISM_CHECK, label: 'Kiểm Tra Đạo Văn', icon: BookOpen, description: 'Check trùng lặp' },
       ]

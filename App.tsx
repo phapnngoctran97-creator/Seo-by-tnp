@@ -12,6 +12,7 @@ import SeoGrader from './components/Tools/SeoGrader';
 import WordCounter from './components/Tools/WordCounter';
 import ImageCompressor from './components/Tools/ImageCompressor';
 import PlagiarismChecker from './components/Tools/PlagiarismChecker';
+import PdfToWord from './components/Tools/PdfToWord';
 // Graphic Tools
 import FacebookCreator from './components/Tools/FacebookCreator'; // Changed
 import BgRemover from './components/Tools/BgRemover';
@@ -79,6 +80,7 @@ const App: React.FC = () => {
       case ToolType.WORD_COUNTER: return <WordCounter />;
       case ToolType.IMG_COMPRESS: return <ImageCompressor />;
       case ToolType.PLAGIARISM_CHECK: return <PlagiarismChecker />;
+      case ToolType.PDF_TO_WORD: return <PdfToWord />;
 
       // Graphic Tools
       case ToolType.FB_CREATOR: return <FacebookCreator />; // Changed
@@ -135,7 +137,7 @@ const App: React.FC = () => {
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* Mobile Header */}
         <header className="bg-white border-b border-gray-200 p-4 flex items-center justify-between md:hidden">
-          <span className="font-bold text-gray-800">SEO Master By TNP - Digital Marketing</span>
+          <span className="font-bold text-gray-800">SEO Master</span>
           <div className="flex items-center gap-2">
             <button
                onClick={() => setShowApiModal(true)}

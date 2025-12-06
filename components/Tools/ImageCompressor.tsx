@@ -22,7 +22,7 @@ const ImageCompressor: React.FC = () => {
   const activeFile = files.find(f => f.id === selectedFileId) || files[0];
 
   // Debounce helper ref
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Core compression logic (reusable)
   const compressSingleFile = async (fileItem: CompressedFile, q: number): Promise<CompressedFile> => {
