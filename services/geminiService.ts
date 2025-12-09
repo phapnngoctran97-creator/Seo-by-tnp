@@ -387,7 +387,7 @@ export const generateMarketingPlanSlides = async (
   if (fileData) {
     promptText += `
     \nQUAN TRỌNG: Người dùng ĐÃ ĐÍNH KÈM một hình ảnh báo cáo (ví dụ: Dashboard quảng cáo, file Excel, hoặc biểu đồ số liệu).
-    Hãy PHÂN TÍCH HÌNH ẢNH NÀY thật kỹ. Trích xuất tất cả các con số quan trọng (Doanh thu, Chi phí, CPC, CTR, ROAS, Leads, v.v.) và SỬ DỤNG CHÚNG để điền vào phần "Review Lịch sử & Số liệu" trong Slide.
+    Hãy PHÂN TÍCH HÌNH NÀY thật kỹ. Trích xuất tất cả các con số quan trọng (Doanh thu, Chi phí, CPC, CTR, ROAS, Leads, v.v.) và SỬ DỤNG CHÚNG để điền vào phần "Review Lịch sử & Số liệu" trong Slide.
     Hãy so sánh số liệu từ hình ảnh với mục tiêu để đưa ra nhận xét sắc bén.
     `;
   }
@@ -425,4 +425,43 @@ export const generateMarketingPlanSlides = async (
   let code = response.text || "";
   code = code.replace(/```html/g, "").replace(/```/g, "").trim();
   return code || "Lỗi tạo slide.";
+};
+
+export const analyzeChartData = async (
+  title: string,
+  type: string,
+  data: any[],
+  columnDescription: string
+): Promise<string> => {
+  const ai = getAiClient();
+  const dataStr = JSON.stringify(data);
+  
+  const prompt = `
+    Bạn là một chuyên gia phân tích dữ liệu (Data Analyst). Hãy phân tích dữ liệu biểu đồ sau và đưa ra nhận xét chi tiết.
+    
+    Thông tin biểu đồ:
+    - Tiêu đề: "${title}"
+    - Loại: ${type}
+    - Dữ liệu: ${dataStr}
+    - Ý nghĩa các cột: ${columnDescription}
+
+    Nhiệm vụ:
+    1. Nhận xét về xu hướng chung (Tăng/Giảm/Ổn định).
+    2. Chỉ ra các điểm nổi bật (Cao nhất, Thấp nhất) ở từng chuỗi dữ liệu.
+    3. Đưa ra so sánh giữa các chuỗi dữ liệu (nếu có nhiều hơn 1).
+    4. Đưa ra dự báo hoặc lời khuyên chiến lược ngắn gọn dựa trên số liệu này.
+    
+    Trình bày ngắn gọn, súc tích bằng Markdown.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+    return response.text || "Không thể phân tích dữ liệu.";
+  } catch (error) {
+    console.error("Gemini Chart Analysis Error:", error);
+    throw error;
+  }
 };
