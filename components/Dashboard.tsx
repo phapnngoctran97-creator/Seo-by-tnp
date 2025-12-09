@@ -7,7 +7,7 @@ import {
   Eraser, Move, Palette, Aperture, ImagePlus, List, Type,
   Clock, Timer, Users, Globe, Activity, ClipboardCheck,
   Megaphone, Target, Calculator, Layout, PieChart, Presentation, Pipette,
-  BarChart3, Link, TrendingUp, DollarSign, History, Facebook, FileType
+  BarChart3, Link, TrendingUp, DollarSign, History, Facebook, FileType, BarChartBig
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -54,6 +54,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   ];
 
   const analyticsTools: ToolItem[] = [
+    { id: ToolType.CHART_GEN, title: 'Tạo Biểu Đồ', desc: 'Vẽ chart từ số liệu.', icon: BarChartBig, color: 'text-violet-600', bg: 'bg-violet-50' },
     { id: ToolType.ROI_CALCULATOR, title: 'Tính ROI & P&L', desc: 'Lãi lỗ thực tế & Đa kênh.', icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50' },
     { id: ToolType.COST_PER_RESULT, title: 'So Sánh CPR', desc: 'Cost Per Result đa kênh.', icon: DollarSign, color: 'text-cyan-600', bg: 'bg-cyan-50' },
     { id: ToolType.MINI_DASHBOARD, title: 'Báo Cáo Nhanh', desc: 'Dashboard & Target.', icon: Activity, color: 'text-emerald-600', bg: 'bg-emerald-50' },

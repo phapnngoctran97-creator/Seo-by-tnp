@@ -33,6 +33,7 @@ import UrlShortener from './components/Tools/UrlShortener';
 import RoiCalculator from './components/Tools/RoiCalculator';
 import CostPerResult from './components/Tools/CostPerResult';
 import MiniAnalyticsDash from './components/Tools/MiniAnalyticsDash';
+import ChartGenerator from './components/Tools/ChartGenerator';
 
 import Dashboard from './components/Dashboard';
 import ApiKeyModal from './components/ApiKeyModal';
@@ -104,6 +105,7 @@ const App: React.FC = () => {
       case ToolType.ROI_CALCULATOR: return <RoiCalculator />;
       case ToolType.COST_PER_RESULT: return <CostPerResult />;
       case ToolType.MINI_DASHBOARD: return <MiniAnalyticsDash />;
+      case ToolType.CHART_GEN: return <ChartGenerator />;
 
       default: return <Dashboard onNavigate={navigateToTool} />;
     }

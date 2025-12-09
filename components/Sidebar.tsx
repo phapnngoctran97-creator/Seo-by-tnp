@@ -6,7 +6,7 @@ import {
   Settings, Key, ChevronDown, ChevronRight, FileText, 
   Image as ImageIcon, BookOpen, Facebook, Eraser, Move, Palette, Aperture, List,
   ClipboardCheck, Megaphone, Target, Calculator, Layout, PieChart, Presentation,
-  Pipette, Link, BarChart3, TrendingUp, DollarSign, Activity, FileType
+  Pipette, Link, BarChart3, TrendingUp, DollarSign, Activity, FileType, BarChartBig
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -17,7 +17,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenSettings }) => {
-  const [expandedGroup, setExpandedGroup] = useState<string | null>('Xử Lý Văn Bản');
+  const [expandedGroup, setExpandedGroup] = useState<string | null>('Phân Tích Số Liệu');
 
   const navGroups: NavGroup[] = [
     {
@@ -34,6 +34,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenS
     {
       title: 'Phân Tích Số Liệu',
       items: [
+        { id: ToolType.CHART_GEN, label: 'Tạo Biểu Đồ', icon: BarChartBig, description: 'Vẽ chart báo cáo' },
         { id: ToolType.UTM_BUILDER, label: 'UTM Builder', icon: Link, description: 'Tạo link tracking' },
         { id: ToolType.URL_SHORTENER, label: 'Rút Gọn Link', icon: Link, description: 'Shorten URL' },
         { id: ToolType.ROI_CALCULATOR, label: 'Tính ROI & P&L', icon: TrendingUp, description: 'Lãi lỗ thực tế' },
