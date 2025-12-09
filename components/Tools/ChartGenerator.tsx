@@ -114,8 +114,20 @@ const ChartGenerator: React.FC = () => {
 
   // --- RENDER CHART ---
   const renderChart = () => {
+    // CRITICAL FIX: Normalize data before rendering
+    // Recharts requires purely numeric values to calculate axes correctly.
+    // Inputs from state might be strings ("100") or empty strings ("").
+    const processedData = data.map(row => {
+        const cleanRow: any = { ...row };
+        seriesList.forEach(s => {
+            // Convert string to number, treat empty/invalid as 0
+            cleanRow[s.id] = Number(row[s.id]) || 0;
+        });
+        return cleanRow;
+    });
+
     const commonProps = {
-      data: data,
+      data: processedData,
       margin: { top: 20, right: 30, left: 20, bottom: 5 }
     };
 
@@ -126,7 +138,7 @@ const ChartGenerator: React.FC = () => {
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="label" />
             <YAxis />
-            <Tooltip />
+            <Tooltip formatter={(value: number) => value.toLocaleString()} />
             <Legend />
             {seriesList.map(s => (
                 <Line key={s.id} type="monotone" dataKey={s.id} name={s.name} stroke={s.color} strokeWidth={3} activeDot={{ r: 8 }} />
@@ -139,7 +151,7 @@ const ChartGenerator: React.FC = () => {
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="label" />
             <YAxis />
-            <Tooltip />
+            <Tooltip formatter={(value: number) => value.toLocaleString()} />
             <Legend />
             {seriesList.map(s => (
                 <Area key={s.id} type="monotone" dataKey={s.id} name={s.name} stroke={s.color} fill={s.color} fillOpacity={0.3} />
@@ -147,11 +159,10 @@ const ChartGenerator: React.FC = () => {
           </AreaChart>
         );
       case 'pie':
-        // Pie chart logic handles multiple series differently (usually just takes the first one or needs drilldown)
-        // For simplicity, we just visualize the FIRST series as a pie
+        // Pie chart logic (Visualizes the FIRST series only for simplicity in multi-series context)
         const firstSeries = seriesList[0];
-        const pieData = data.map(d => ({ name: d.label, value: Number(d[firstSeries.id]) || 0 }));
-        const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8b5cf6', '#ec4899'];
+        const pieData = processedData.map(d => ({ name: d.label, value: Number(d[firstSeries.id]) || 0 }));
+        const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8b5cf6', '#ec4899', '#6366f1'];
         
         return (
           <PieChart>
@@ -183,11 +194,9 @@ const ChartGenerator: React.FC = () => {
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="label" />
             <YAxis />
-            <Tooltip />
+            <Tooltip formatter={(value: number) => value.toLocaleString()} />
             <Legend />
             {seriesList.map((s, idx) => {
-                // Default first to bar, others to line if not specified, or use user preference if we added that UI
-                // Here we cycle types or use the stored 'type' in SeriesList (which defaults to bar for s1, line for others)
                 const Component = s.type === 'bar' ? Bar : (s.type === 'area' ? Area : Line);
                 return (
                     <Component 
@@ -197,7 +206,7 @@ const ChartGenerator: React.FC = () => {
                         name={s.name} 
                         fill={s.color} 
                         stroke={s.color}
-                        barSize={chartType === 'composed' ? undefined : 30} // Let auto-size handle multiple bars
+                        barSize={chartType === 'composed' ? undefined : 30}
                     />
                 );
             })}
@@ -210,7 +219,7 @@ const ChartGenerator: React.FC = () => {
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="label" />
             <YAxis />
-            <Tooltip />
+            <Tooltip formatter={(value: number) => value.toLocaleString()} />
             <Legend />
             {seriesList.map(s => (
                 <Bar key={s.id} dataKey={s.id} name={s.name} fill={s.color} radius={[4, 4, 0, 0]} />
