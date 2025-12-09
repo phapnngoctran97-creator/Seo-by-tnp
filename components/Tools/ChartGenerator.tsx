@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   BarChartBig, Plus, Trash2, PieChart as PieIcon, Activity, LineChart as LineIcon, Layers, Sparkles, Loader2, Settings
@@ -62,7 +61,6 @@ const ChartGenerator: React.FC = () => {
   const removeSeries = (id: string) => {
     if (seriesList.length <= 1) return;
     setSeriesList(prev => prev.filter(s => s.id !== id));
-    // Optional: Cleanup data keys, but not strictly necessary for display
   };
 
   const updateSeries = (id: string, field: keyof DataSeries, val: any) => {
@@ -115,8 +113,6 @@ const ChartGenerator: React.FC = () => {
   // --- RENDER CHART ---
   const renderChart = () => {
     // CRITICAL FIX: Normalize data before rendering
-    // Recharts requires purely numeric values to calculate axes correctly.
-    // Inputs from state might be strings ("100") or empty strings ("").
     const processedData = data.map(row => {
         const cleanRow: any = { ...row };
         seriesList.forEach(s => {
@@ -126,9 +122,18 @@ const ChartGenerator: React.FC = () => {
         return cleanRow;
     });
 
+    // Fix Margins to prevent Axis clipping (Left: 40 for Y labels, Bottom: 20 for X labels)
     const commonProps = {
       data: processedData,
-      margin: { top: 20, right: 30, left: 20, bottom: 5 }
+      margin: { top: 20, right: 30, left: 40, bottom: 20 }
+    };
+
+    // Shared Axis Props to ensure consistency
+    const axisProps = {
+       // padding helps prevent first/last label cutoff
+       xAxis: <XAxis dataKey="label" padding={{ left: 20, right: 20 }} minTickGap={30} />,
+       // fixed width ensures Y axis labels don't get hidden
+       yAxis: <YAxis width={60} allowDecimals={false} />
     };
 
     switch (chartType) {
@@ -136,8 +141,8 @@ const ChartGenerator: React.FC = () => {
         return (
           <LineChart {...commonProps}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="label" />
-            <YAxis />
+            {axisProps.xAxis}
+            {axisProps.yAxis}
             <Tooltip formatter={(value: number) => value.toLocaleString()} />
             <Legend />
             {seriesList.map(s => (
@@ -149,8 +154,8 @@ const ChartGenerator: React.FC = () => {
         return (
           <AreaChart {...commonProps}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="label" />
-            <YAxis />
+            {axisProps.xAxis}
+            {axisProps.yAxis}
             <Tooltip formatter={(value: number) => value.toLocaleString()} />
             <Legend />
             {seriesList.map(s => (
@@ -159,13 +164,12 @@ const ChartGenerator: React.FC = () => {
           </AreaChart>
         );
       case 'pie':
-        // Pie chart logic (Visualizes the FIRST series only for simplicity in multi-series context)
         const firstSeries = seriesList[0];
         const pieData = processedData.map(d => ({ name: d.label, value: Number(d[firstSeries.id]) || 0 }));
         const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8b5cf6', '#ec4899', '#6366f1'];
         
         return (
-          <PieChart>
+          <PieChart margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
             <Pie
               data={pieData}
               cx="50%"
@@ -192,8 +196,8 @@ const ChartGenerator: React.FC = () => {
         return (
           <ComposedChart {...commonProps}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="label" />
-            <YAxis />
+            {axisProps.xAxis}
+            {axisProps.yAxis}
             <Tooltip formatter={(value: number) => value.toLocaleString()} />
             <Legend />
             {seriesList.map((s, idx) => {
@@ -217,8 +221,8 @@ const ChartGenerator: React.FC = () => {
         return (
           <BarChart {...commonProps}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="label" />
-            <YAxis />
+            {axisProps.xAxis}
+            {axisProps.yAxis}
             <Tooltip formatter={(value: number) => value.toLocaleString()} />
             <Legend />
             {seriesList.map(s => (
