@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  BarChartBig, Plus, Trash2, PieChart as PieIcon, Activity, LineChart as LineIcon, Layers, Sparkles, Loader2, Settings
+  BarChartBig, Plus, Trash2, PieChart as PieIcon, Activity, LineChart as LineIcon, Layers, Sparkles, Loader2, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { 
   BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, ComposedChart,
@@ -12,35 +12,49 @@ interface DataSeries {
   id: string;
   name: string;
   color: string;
-  type: 'bar' | 'line' | 'area'; // For composed chart specificity
+  type: 'bar' | 'line' | 'area';
 }
 
 interface ChartRow {
   id: string;
   label: string;
-  [key: string]: any; // Dynamic values: val_seriesId
+  [key: string]: any; 
 }
 
 const ChartGenerator: React.FC = () => {
-  const [title, setTitle] = useState('Biểu đồ doanh số');
-  const [chartType, setChartType] = useState<'bar' | 'line' | 'area' | 'pie' | 'composed'>('bar');
+  const [title, setTitle] = useState('Biểu đồ doanh số & Tăng trưởng');
+  const [chartType, setChartType] = useState<'bar' | 'line' | 'area' | 'pie' | 'composed'>('composed');
   
   // Dynamic Series Management
   const [seriesList, setSeriesList] = useState<DataSeries[]>([
-    { id: 's1', name: 'Doanh thu', color: '#8b5cf6', type: 'bar' }
+    { id: 's1', name: 'Doanh thu', color: '#8b5cf6', type: 'bar' },
+    { id: 's2', name: 'Tăng trưởng (%)', color: '#f59e0b', type: 'line' }
   ]);
 
   // Initial Data
   const [data, setData] = useState<ChartRow[]>([
-    { id: '1', label: 'Tháng 1', s1: 4000 },
-    { id: '2', label: 'Tháng 2', s1: 3000 },
-    { id: '3', label: 'Tháng 3', s1: 5000 },
-    { id: '4', label: 'Tháng 4', s1: 4500 },
+    { id: '1', label: 'Tháng 1', s1: 50000000, s2: 5 },
+    { id: '2', label: 'Tháng 2', s1: 45000000, s2: -10 },
+    { id: '3', label: 'Tháng 3', s1: 80000000, s2: 78 },
+    { id: '4', label: 'Tháng 4', s1: 60000000, s2: 20 },
   ]);
 
   // AI Analysis State
   const [analysisResult, setAnalysisResult] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  // --- HELPERS ---
+  const formatCompactNumber = (number: number) => {
+    return Intl.NumberFormat('en-US', {
+      notation: "compact",
+      maximumFractionDigits: 1
+    }).format(number);
+  };
+
+  const formatInputNumber = (val: string | number) => {
+    if (val === '' || val === undefined) return '';
+    return Number(val).toLocaleString('en-US');
+  };
 
   // --- SERIES ACTIONS ---
   const addSeries = () => {
@@ -52,9 +66,11 @@ const ChartGenerator: React.FC = () => {
     const colors = ['#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#ec4899'];
     const nextColor = colors[seriesList.length % colors.length];
     
-    setSeriesList([...seriesList, { id: newId, name: `Dữ liệu ${seriesList.length + 1}`, color: nextColor, type: 'line' }]);
+    // Default to 'line' if there are already bars, makes composed charts look better automatically
+    const defaultType = seriesList.some(s => s.type === 'bar') ? 'line' : 'bar';
+
+    setSeriesList([...seriesList, { id: newId, name: `Dữ liệu ${seriesList.length + 1}`, color: nextColor, type: defaultType }]);
     
-    // Initialize empty values for new series
     setData(prev => prev.map(row => ({ ...row, [newId]: '' })));
   };
 
@@ -78,7 +94,25 @@ const ChartGenerator: React.FC = () => {
     setData(data.filter(item => item.id !== id));
   };
 
-  const updateRowData = (rowId: string, key: string, val: any) => {
+  const moveRow = (index: number, direction: 'up' | 'down') => {
+    const newData = [...data];
+    if (direction === 'up') {
+        if (index === 0) return;
+        [newData[index - 1], newData[index]] = [newData[index], newData[index - 1]];
+    } else {
+        if (index === newData.length - 1) return;
+        [newData[index + 1], newData[index]] = [newData[index], newData[index + 1]];
+    }
+    setData(newData);
+  };
+
+  const updateRowData = (rowId: string, key: string, rawVal: string) => {
+    let val = rawVal;
+    // If it's a series value (starts with 's'), strip commas to store as number (or string representation of number)
+    if (key.startsWith('s')) {
+       val = rawVal.replace(/,/g, '');
+       if (isNaN(Number(val))) return; // Prevent non-numeric
+    }
     setData(data.map(row => row.id === rowId ? { ...row, [key]: val } : row));
   };
 
@@ -87,7 +121,6 @@ const ChartGenerator: React.FC = () => {
     setIsAnalyzing(true);
     setAnalysisResult('');
     try {
-      // Format data for AI
       const aiData = data.map(row => {
           const item: any = { label: row.label };
           seriesList.forEach(s => item[s.name] = row[s.id]);
@@ -100,7 +133,7 @@ const ChartGenerator: React.FC = () => {
         title, 
         chartType, 
         aiData,
-        `Trục X: Nhãn (Thời gian/Mục). Các chuỗi dữ liệu: ${descriptions}`
+        `Trục X: Nhãn. Các chuỗi dữ liệu: ${descriptions}`
       );
       setAnalysisResult(result);
     } catch (error) {
@@ -112,64 +145,68 @@ const ChartGenerator: React.FC = () => {
 
   // --- RENDER CHART ---
   const renderChart = () => {
-    // CRITICAL FIX: Normalize data before rendering
+    // 1. Normalize Data
     const processedData = data.map(row => {
         const cleanRow: any = { ...row };
         seriesList.forEach(s => {
-            // Convert string to number, treat empty/invalid as 0
             cleanRow[s.id] = Number(row[s.id]) || 0;
         });
         return cleanRow;
     });
 
-    // Fix Margins to prevent Axis clipping (Left: 40 for Y labels, Bottom: 20 for X labels)
+    // 2. Detect Dual Axis Need
+    // Logic: Find max of primary series (s1). If any other series max is < 1/20th of primary, put it on Right Axis.
+    const seriesMaxes: Record<string, number> = {};
+    seriesList.forEach(s => {
+        seriesMaxes[s.id] = Math.max(...processedData.map(r => Number(r[s.id]) || 0));
+    });
+
+    const primaryMax = seriesMaxes[seriesList[0].id] || 0;
+    const rightAxisSeriesIds = new Set<string>();
+    let hasRightAxis = false;
+
+    // Only apply dual axis logic for linear charts
+    if (chartType !== 'pie') {
+        seriesList.forEach((s, idx) => {
+            if (idx === 0) return; // Skip primary
+            const currentMax = seriesMaxes[s.id];
+            
+            // Heuristic: If current is very small compared to primary OR primary is very small compared to current
+            // Using a factor of 10 for significant difference
+            if (primaryMax > 0 && currentMax > 0) {
+                if ((primaryMax / currentMax > 10) || (currentMax / primaryMax > 10)) {
+                    rightAxisSeriesIds.add(s.id);
+                    hasRightAxis = true;
+                }
+            }
+        });
+    }
+
     const commonProps = {
       data: processedData,
-      margin: { top: 20, right: 30, left: 40, bottom: 20 }
+      margin: { top: 20, right: hasRightAxis ? 10 : 30, left: 10, bottom: 20 }
     };
 
-    // Shared Axis Props to ensure consistency
-    const axisProps = {
-       // padding helps prevent first/last label cutoff
-       xAxis: <XAxis dataKey="label" padding={{ left: 20, right: 20 }} minTickGap={30} />,
-       // fixed width ensures Y axis labels don't get hidden
-       yAxis: <YAxis width={60} allowDecimals={false} />
-    };
+    const AxisX = <XAxis dataKey="label" padding={{ left: 20, right: 20 }} minTickGap={30} />;
+    // Left Axis formats numbers (M, B)
+    const AxisYLeft = <YAxis yAxisId="left" tickFormatter={formatCompactNumber} width={50} />;
+    const AxisYRight = <YAxis yAxisId="right" orientation="right" tickFormatter={formatCompactNumber} width={50} />;
+    
+    const ChartTooltip = (
+        <Tooltip 
+            formatter={(value: number, name: string) => [Number(value).toLocaleString('en-US'), name]} 
+            labelStyle={{fontWeight: 'bold', color: '#374151'}}
+            contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}}
+        />
+    );
 
-    switch (chartType) {
-      case 'line':
-        return (
-          <LineChart {...commonProps}>
-            <CartesianGrid strokeDasharray="3 3" />
-            {axisProps.xAxis}
-            {axisProps.yAxis}
-            <Tooltip formatter={(value: number) => value.toLocaleString()} />
-            <Legend />
-            {seriesList.map(s => (
-                <Line key={s.id} type="monotone" dataKey={s.id} name={s.name} stroke={s.color} strokeWidth={3} activeDot={{ r: 8 }} />
-            ))}
-          </LineChart>
-        );
-      case 'area':
-        return (
-          <AreaChart {...commonProps}>
-            <CartesianGrid strokeDasharray="3 3" />
-            {axisProps.xAxis}
-            {axisProps.yAxis}
-            <Tooltip formatter={(value: number) => value.toLocaleString()} />
-            <Legend />
-            {seriesList.map(s => (
-                <Area key={s.id} type="monotone" dataKey={s.id} name={s.name} stroke={s.color} fill={s.color} fillOpacity={0.3} />
-            ))}
-          </AreaChart>
-        );
-      case 'pie':
+    // PIE CHART SPECIAL CASE
+    if (chartType === 'pie') {
         const firstSeries = seriesList[0];
         const pieData = processedData.map(d => ({ name: d.label, value: Number(d[firstSeries.id]) || 0 }));
         const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8b5cf6', '#ec4899', '#6366f1'];
-        
         return (
-          <PieChart margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+          <PieChart margin={commonProps.margin}>
             <Pie
               data={pieData}
               cx="50%"
@@ -179,67 +216,80 @@ const ChartGenerator: React.FC = () => {
               paddingAngle={5}
               dataKey="value"
               nameKey="name"
-              label
+              label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
             >
               {pieData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip formatter={(val: number) => val.toLocaleString()} />
+            {ChartTooltip}
             <Legend />
             <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" className="text-sm font-bold fill-gray-500">
                 {firstSeries.name}
             </text>
           </PieChart>
         );
-      case 'composed':
-        return (
-          <ComposedChart {...commonProps}>
-            <CartesianGrid strokeDasharray="3 3" />
-            {axisProps.xAxis}
-            {axisProps.yAxis}
-            <Tooltip formatter={(value: number) => value.toLocaleString()} />
-            <Legend />
-            {seriesList.map((s, idx) => {
-                const Component = s.type === 'bar' ? Bar : (s.type === 'area' ? Area : Line);
-                return (
-                    <Component 
-                        key={s.id} 
-                        type="monotone" 
-                        dataKey={s.id} 
-                        name={s.name} 
-                        fill={s.color} 
-                        stroke={s.color}
-                        barSize={chartType === 'composed' ? undefined : 30}
-                    />
-                );
-            })}
-          </ComposedChart>
-        );
-      case 'bar':
-      default:
-        return (
-          <BarChart {...commonProps}>
-            <CartesianGrid strokeDasharray="3 3" />
-            {axisProps.xAxis}
-            {axisProps.yAxis}
-            <Tooltip formatter={(value: number) => value.toLocaleString()} />
-            <Legend />
-            {seriesList.map(s => (
-                <Bar key={s.id} dataKey={s.id} name={s.name} fill={s.color} radius={[4, 4, 0, 0]} />
-            ))}
-          </BarChart>
-        );
     }
+
+    // LINEAR CHARTS (Using ComposedChart as base for flexibility)
+    return (
+        <ComposedChart {...commonProps}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+            {AxisX}
+            {AxisYLeft}
+            {hasRightAxis && AxisYRight}
+            {ChartTooltip}
+            <Legend wrapperStyle={{paddingTop: '10px'}}/>
+            
+            {seriesList.map((s) => {
+                const yAxisId = rightAxisSeriesIds.has(s.id) ? "right" : "left";
+                
+                // Force specific component based on chartType selection, 
+                // OR fallback to individual series preference if 'composed' selected
+                let ComponentType: any = Bar;
+                if (chartType === 'line') ComponentType = Line;
+                else if (chartType === 'area') ComponentType = Area;
+                else if (chartType === 'composed') ComponentType = s.type === 'line' ? Line : (s.type === 'area' ? Area : Bar);
+
+                // Specific styling props
+                const styleProps: any = {
+                    key: s.id,
+                    dataKey: s.id,
+                    name: s.name,
+                    yAxisId: yAxisId,
+                    animationDuration: 1000
+                };
+
+                if (ComponentType === Bar) {
+                    styleProps.fill = s.color;
+                    styleProps.radius = [4, 4, 0, 0];
+                    styleProps.barSize = seriesList.length > 3 ? undefined : 40; // Auto size if many
+                } else if (ComponentType === Line) {
+                    styleProps.type = "monotone";
+                    styleProps.stroke = s.color;
+                    styleProps.strokeWidth = 3;
+                    styleProps.dot = { r: 4, strokeWidth: 2 };
+                    styleProps.activeDot = { r: 7 };
+                } else if (ComponentType === Area) {
+                    styleProps.type = "monotone";
+                    styleProps.stroke = s.color;
+                    styleProps.fill = s.color;
+                    styleProps.fillOpacity = 0.3;
+                }
+
+                return <ComponentType {...styleProps} />;
+            })}
+        </ComposedChart>
+    );
   };
 
   return (
     <div className="max-w-7xl mx-auto h-[calc(100vh-140px)] flex flex-col">
       <div className="mb-4">
         <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <BarChartBig className="text-violet-600" /> Tạo Biểu Đồ Đa Năng (Multi-Series)
+          <BarChartBig className="text-violet-600" /> Tạo Biểu Đồ Đa Năng
         </h2>
-        <p className="text-gray-600 mt-1">So sánh nhiều dữ liệu, tùy chỉnh màu sắc và phân tích AI.</p>
+        <p className="text-gray-600 mt-1">Hỗ trợ 2 trục tung tự động, định dạng số thông minh (M/B) và phân tích AI.</p>
       </div>
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
@@ -258,13 +308,13 @@ const ChartGenerator: React.FC = () => {
               />
               
               <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
-                 {['bar', 'line', 'area', 'pie', 'composed'].map((t) => (
+                 {['composed', 'bar', 'line', 'area', 'pie'].map((t) => (
                      <button
                         key={t}
                         onClick={() => setChartType(t as any)}
                         className={`flex-1 py-1.5 rounded text-xs font-medium uppercase transition-all ${chartType === t ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                      >
-                         {t}
+                         {t === 'composed' ? 'Hỗn hợp' : t}
                      </button>
                  ))}
               </div>
@@ -297,7 +347,7 @@ const ChartGenerator: React.FC = () => {
                                <select 
                                   value={s.type} 
                                   onChange={e => updateSeries(s.id, 'type', e.target.value)}
-                                  className="text-xs border rounded p-1 bg-white"
+                                  className="text-xs border rounded p-1 bg-white cursor-pointer"
                                >
                                    <option value="bar">Cột</option>
                                    <option value="line">Đường</option>
@@ -316,7 +366,7 @@ const ChartGenerator: React.FC = () => {
 
            {/* Data Table */}
            <div className="flex justify-between items-center mb-2">
-               <h3 className="font-bold text-gray-700 text-sm">Dữ liệu chi tiết</h3>
+               <h3 className="font-bold text-gray-700 text-sm">Dữ liệu</h3>
                <button onClick={addRow} className="text-xs flex items-center gap-1 bg-gray-100 text-gray-600 px-2 py-1 rounded hover:bg-gray-200">
                    <Plus size={12} /> Dòng
                </button>
@@ -332,11 +382,11 @@ const ChartGenerator: React.FC = () => {
                                    {s.name}
                                </th>
                            ))}
-                           <th className="w-8"></th>
+                           <th className="w-16"></th>
                        </tr>
                    </thead>
                    <tbody className="divide-y divide-gray-100">
-                       {data.map((row) => (
+                       {data.map((row, idx) => (
                            <tr key={row.id} className="group hover:bg-gray-50">
                                <td className="p-1">
                                    <input 
@@ -348,16 +398,20 @@ const ChartGenerator: React.FC = () => {
                                {seriesList.map(s => (
                                    <td key={s.id} className="p-1">
                                        <input 
-                                          type="number"
-                                          value={row[s.id]} 
+                                          type="text"
+                                          value={formatInputNumber(row[s.id])} 
                                           onChange={e => updateRowData(row.id, s.id, e.target.value)}
-                                          className="w-full p-1 bg-transparent focus:bg-white rounded border border-transparent focus:border-violet-300 outline-none"
+                                          className="w-full p-1 bg-transparent focus:bg-white rounded border border-transparent focus:border-violet-300 outline-none text-right"
                                           placeholder="0"
                                        />
                                    </td>
                                ))}
-                               <td className="p-1 text-center">
-                                   <button onClick={() => removeRow(row.id)} className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                               <td className="p-1 flex items-center justify-center gap-1">
+                                   <div className="flex flex-col">
+                                       <button onClick={() => moveRow(idx, 'up')} disabled={idx === 0} className="text-gray-300 hover:text-gray-600 disabled:opacity-30"><ArrowUp size={10}/></button>
+                                       <button onClick={() => moveRow(idx, 'down')} disabled={idx === data.length - 1} className="text-gray-300 hover:text-gray-600 disabled:opacity-30"><ArrowDown size={10}/></button>
+                                   </div>
+                                   <button onClick={() => removeRow(row.id)} className="text-gray-300 hover:text-red-500">
                                        <Trash2 size={14} />
                                    </button>
                                </td>
