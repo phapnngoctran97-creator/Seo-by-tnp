@@ -199,73 +199,95 @@ const ChartGenerator: React.FC = () => {
     setData(data.map(row => row.id === rowId ? { ...row, [key]: val } : row));
   };
 
-  // --- FIXED DOWNLOAD FUNCTION ---
+  // --- EXPERT DOWNLOAD FUNCTION (ROBUST) ---
   const handleDownloadImage = () => {
     if (!chartRef.current) {
         alert("Chưa có biểu đồ.");
         return;
     }
 
-    const svg = chartRef.current.querySelector('.recharts-surface');
-    if (!svg) {
+    // 1. Tìm phần tử SVG trong container của Recharts
+    const svgElement = chartRef.current.querySelector('.recharts-surface') as SVGSVGElement;
+    if (!svgElement) {
         alert("Lỗi không tìm thấy biểu đồ.");
         return;
     }
 
-    // Clone SVG to modify without affecting view
-    const svgClone = svg.cloneNode(true) as SVGElement;
-    
-    // Explicitly set namespaces
-    svgClone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    
-    // Add white background rect to SVG
+    // 2. Lấy kích thước thực tế của SVG đang hiển thị
+    const { width, height } = svgElement.getBoundingClientRect();
+
+    // 3. Clone SVG node để không ảnh hưởng giao diện chính
+    const clonedSvg = svgElement.cloneNode(true) as SVGSVGElement;
+
+    // 4. THIẾT LẬP KÍCH THƯỚC CỨNG (Quan trọng)
+    // Nếu không set, khi vẽ lên canvas nó có thể bị 0x0
+    clonedSvg.setAttribute('width', width.toString());
+    clonedSvg.setAttribute('height', height.toString());
+    clonedSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    clonedSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+    // 5. Thêm nền trắng cho SVG (tránh ảnh bị đen nền trong suốt)
     const bgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     bgRect.setAttribute("width", "100%");
     bgRect.setAttribute("height", "100%");
     bgRect.setAttribute("fill", "#ffffff");
-    svgClone.insertBefore(bgRect, svgClone.firstChild);
+    // Chèn rect vào đầu tiên để làm nền
+    if (clonedSvg.firstChild) {
+        clonedSvg.insertBefore(bgRect, clonedSvg.firstChild);
+    } else {
+        clonedSvg.appendChild(bgRect);
+    }
 
-    // Serialize
-    const svgData = new XMLSerializer().serializeToString(svgClone);
+    // 6. Serialize SVG thành chuỗi XML
+    const svgData = new XMLSerializer().serializeToString(clonedSvg);
     
-    // Important: Use encodeURIComponent for UTF-8 support (Vietnam char)
-    const svgUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgData)}`;
+    // 7. Tạo Blob URL (An toàn hơn Base64 string dài)
+    const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
 
+    // 8. Vẽ lên Canvas
     const canvas = document.createElement("canvas");
+    const padding = 40;
+    const titleHeight = 60;
+    
+    canvas.width = width + (padding * 2);
+    canvas.height = height + titleHeight + (padding * 2);
+    
     const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Vẽ nền trắng cho toàn bộ canvas
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Vẽ tiêu đề
+    ctx.fillStyle = "#111827"; // Gray-900
+    ctx.font = "bold 24px Inter, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(title, canvas.width/2, padding + (titleHeight/2));
+
     const img = new Image();
-
+    img.crossOrigin = "anonymous";
+    
     img.onload = () => {
-        const titleHeight = 50;
-        const padding = 20;
+        // Vẽ ảnh biểu đồ vào canvas
+        ctx.drawImage(img, padding, padding + titleHeight, width, height);
         
-        canvas.width = (svg.clientWidth || 800) + (padding * 2);
-        canvas.height = (svg.clientHeight || 400) + titleHeight + (padding * 2);
+        // Tải xuống
+        const pngUrl = canvas.toDataURL("image/png", 1.0);
+        const downloadLink = document.createElement("a");
+        downloadLink.href = pngUrl;
+        downloadLink.download = `${title.replace(/\s+/g, '_')}_chart.png`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
         
-        if (ctx) {
-            // White Background for Canvas
-            ctx.fillStyle = "white";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw Title
-            ctx.fillStyle = "#111827"; // Gray-900
-            ctx.font = "bold 20px Inter, sans-serif";
-            ctx.textAlign = "center";
-            ctx.fillText(title, canvas.width/2, 40);
-
-            // Draw Chart
-            ctx.drawImage(img, padding, titleHeight + padding);
-            
-            const pngUrl = canvas.toDataURL("image/png");
-            const downloadLink = document.createElement("a");
-            downloadLink.href = pngUrl;
-            downloadLink.download = `${title.replace(/\s+/g, '_')}.png`;
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            document.body.removeChild(downloadLink);
-        }
+        // Dọn dẹp bộ nhớ
+        URL.revokeObjectURL(url);
     };
-    img.src = svgUrl;
+    
+    img.src = url;
   };
 
   const handleAnalyze = async () => {
