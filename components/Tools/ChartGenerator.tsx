@@ -580,58 +580,66 @@ const ChartGenerator: React.FC = () => {
                </button>
            </div>
 
-           <div className="flex-1 overflow-auto border border-gray-200 rounded-lg bg-white">
-               {/* Added overflow-x-auto and min-w-full for scrollable table */}
-               <div className="overflow-x-auto w-full">
-                   <table className="w-full text-sm min-w-full">
-                       <thead className="bg-gray-50 sticky top-0 z-10">
-                           <tr>
-                               {/* Increased min-width for Label column */}
-                               <th className="p-2 text-left text-xs font-semibold text-gray-500 min-w-[200px] sticky left-0 bg-gray-50 z-20 shadow-r border-r border-gray-100">Nhãn</th>
-                               {seriesList.map(s => (
-                                   <th key={s.id} className="p-2 text-left text-xs font-semibold text-gray-500 min-w-[100px]" style={{color: s.color}}>
-                                       {s.name}
-                                   </th>
-                               ))}
-                               <th className="w-16"></th>
-                           </tr>
-                       </thead>
-                       <tbody className="divide-y divide-gray-100">
-                           {data.map((row, idx) => (
-                               <tr key={row.id} className="group hover:bg-gray-50">
-                                   <td className="p-1 sticky left-0 bg-white group-hover:bg-gray-50 z-10 shadow-r border-r border-gray-100">
+           <div className="flex-1 overflow-auto border border-gray-200 rounded-lg bg-white relative">
+               {/* Added relative to container and standard table structure to support sticky header */}
+               <table className="w-full text-sm min-w-full border-collapse">
+                   <thead className="bg-gray-50 sticky top-0 z-30 shadow-sm">
+                       <tr>
+                           {/* Label Column: Sticky Left and Auto-width */}
+                           <th className="p-2 text-left text-xs font-semibold text-gray-500 sticky left-0 z-40 bg-gray-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-b border-r border-gray-200 min-w-[120px]">
+                               Nhãn
+                           </th>
+                           {seriesList.map(s => (
+                               <th key={s.id} className="p-2 text-left text-xs font-semibold text-gray-500 min-w-[100px] border-b border-gray-200" style={{color: s.color}}>
+                                   {s.name}
+                               </th>
+                           ))}
+                           <th className="w-16 border-b border-gray-200"></th>
+                       </tr>
+                   </thead>
+                   <tbody className="divide-y divide-gray-100">
+                       {data.map((row, idx) => (
+                           <tr key={row.id} className="group hover:bg-gray-50">
+                               {/* Label Cell: Sticky Left + Grid Stack Trick for Auto Width */}
+                               <td className="p-1 sticky left-0 bg-white group-hover:bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-gray-100">
+                                   <div className="grid grid-cols-1">
+                                       {/* Invisible span to force width based on content */}
+                                       <span className="invisible row-start-1 col-start-1 p-2 font-medium text-sm whitespace-pre px-3">
+                                           {row.label || 'Placeholder'}
+                                       </span>
+                                       {/* Actual Input */}
                                        <input 
                                           value={row.label} 
                                           onChange={e => updateRowData(row.id, 'label', e.target.value)}
-                                          className="w-full p-2 bg-transparent focus:bg-white rounded border border-transparent focus:border-violet-300 outline-none font-medium text-sm"
+                                          className="row-start-1 col-start-1 w-full p-2 bg-transparent focus:bg-white rounded border border-transparent focus:border-violet-300 outline-none font-medium text-sm px-3"
                                           placeholder="Nhập tên..."
                                        />
+                                   </div>
+                               </td>
+                               {seriesList.map(s => (
+                                   <td key={s.id} className="p-1">
+                                       <input 
+                                          type="text"
+                                          value={formatInputDisplay(row[s.id])} 
+                                          onChange={e => updateRowData(row.id, s.id, e.target.value)}
+                                          className="w-full p-2 bg-transparent focus:bg-white rounded border border-transparent focus:border-violet-300 outline-none text-right font-mono text-xs"
+                                          placeholder="0"
+                                       />
                                    </td>
-                                   {seriesList.map(s => (
-                                       <td key={s.id} className="p-1">
-                                           <input 
-                                              type="text"
-                                              value={formatInputDisplay(row[s.id])} 
-                                              onChange={e => updateRowData(row.id, s.id, e.target.value)}
-                                              className="w-full p-2 bg-transparent focus:bg-white rounded border border-transparent focus:border-violet-300 outline-none text-right font-mono text-xs"
-                                              placeholder="0"
-                                           />
-                                       </td>
-                                   ))}
-                                   <td className="p-1 flex items-center justify-center gap-1">
-                                       <div className="flex flex-col">
-                                           <button onClick={() => moveRow(idx, 'up')} disabled={idx === 0} className="text-gray-300 hover:text-gray-600 disabled:opacity-30"><ArrowUp size={10}/></button>
-                                           <button onClick={() => moveRow(idx, 'down')} disabled={idx === data.length - 1} className="text-gray-300 hover:text-gray-600 disabled:opacity-30"><ArrowDown size={10}/></button>
-                                       </div>
-                                       <button onClick={() => removeRow(row.id)} className="text-gray-300 hover:text-red-500">
-                                           <Trash2 size={14} />
-                                       </button>
-                                   </td>
-                               </tr>
-                           ))}
-                       </tbody>
-                   </table>
-               </div>
+                               ))}
+                               <td className="p-1 flex items-center justify-center gap-1">
+                                   <div className="flex flex-col">
+                                       <button onClick={() => moveRow(idx, 'up')} disabled={idx === 0} className="text-gray-300 hover:text-gray-600 disabled:opacity-30"><ArrowUp size={10}/></button>
+                                       <button onClick={() => moveRow(idx, 'down')} disabled={idx === data.length - 1} className="text-gray-300 hover:text-gray-600 disabled:opacity-30"><ArrowDown size={10}/></button>
+                                   </div>
+                                   <button onClick={() => removeRow(row.id)} className="text-gray-300 hover:text-red-500">
+                                       <Trash2 size={14} />
+                                   </button>
+                               </td>
+                           </tr>
+                       ))}
+                   </tbody>
+               </table>
            </div>
         </div>
 
