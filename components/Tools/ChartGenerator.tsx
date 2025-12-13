@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   BarChartBig, Plus, Trash2, PieChart as PieIcon, Activity, LineChart as LineIcon, 
   Layers, Sparkles, Loader2, ArrowUp, ArrowDown, Save, FolderOpen, X, Copy, Check,
-  Settings, Download, Grid3X3, Type, RotateCw, AlignLeft
+  Settings, Download, Grid3X3, Type, RotateCw, AlignLeft, Image as ImageIcon
 } from 'lucide-react';
 import { 
   BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, ComposedChart,
@@ -199,7 +199,7 @@ const ChartGenerator: React.FC = () => {
     setData(data.map(row => row.id === rowId ? { ...row, [key]: val } : row));
   };
 
-  // --- EXPERT DOWNLOAD FUNCTION (ROBUST) ---
+  // --- EXPERT DOWNLOAD FUNCTION (ROBUST & HIGH RES) ---
   const handleDownloadImage = () => {
     if (!chartRef.current) {
         alert("Chưa có biểu đồ.");
@@ -219,19 +219,18 @@ const ChartGenerator: React.FC = () => {
     // 3. Clone SVG node để không ảnh hưởng giao diện chính
     const clonedSvg = svgElement.cloneNode(true) as SVGSVGElement;
 
-    // 4. THIẾT LẬP KÍCH THƯỚC CỨNG (Quan trọng)
-    // Nếu không set, khi vẽ lên canvas nó có thể bị 0x0
+    // 4. THIẾT LẬP KÍCH THƯỚC CỨNG
     clonedSvg.setAttribute('width', width.toString());
     clonedSvg.setAttribute('height', height.toString());
     clonedSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
     clonedSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
 
-    // 5. Thêm nền trắng cho SVG (tránh ảnh bị đen nền trong suốt)
+    // 5. Thêm nền trắng cho SVG
     const bgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     bgRect.setAttribute("width", "100%");
     bgRect.setAttribute("height", "100%");
     bgRect.setAttribute("fill", "#ffffff");
-    // Chèn rect vào đầu tiên để làm nền
+    
     if (clonedSvg.firstChild) {
         clonedSvg.insertBefore(bgRect, clonedSvg.firstChild);
     } else {
@@ -240,18 +239,17 @@ const ChartGenerator: React.FC = () => {
 
     // 6. Serialize SVG thành chuỗi XML
     const svgData = new XMLSerializer().serializeToString(clonedSvg);
-    
-    // 7. Tạo Blob URL (An toàn hơn Base64 string dài)
     const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
 
-    // 8. Vẽ lên Canvas
+    // 7. Vẽ lên Canvas với Scale 2x cho sắc nét
     const canvas = document.createElement("canvas");
-    const padding = 40;
-    const titleHeight = 60;
+    const scale = 2; // High resolution scale
+    const padding = 40 * scale;
+    const titleHeight = 60 * scale;
     
-    canvas.width = width + (padding * 2);
-    canvas.height = height + titleHeight + (padding * 2);
+    canvas.width = (width * scale) + (padding * 2);
+    canvas.height = (height * scale) + titleHeight + (padding * 2);
     
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -262,7 +260,7 @@ const ChartGenerator: React.FC = () => {
     
     // Vẽ tiêu đề
     ctx.fillStyle = "#111827"; // Gray-900
-    ctx.font = "bold 24px Inter, sans-serif";
+    ctx.font = `bold ${24 * scale}px Inter, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(title, canvas.width/2, padding + (titleHeight/2));
@@ -272,7 +270,7 @@ const ChartGenerator: React.FC = () => {
     
     img.onload = () => {
         // Vẽ ảnh biểu đồ vào canvas
-        ctx.drawImage(img, padding, padding + titleHeight, width, height);
+        ctx.drawImage(img, padding, padding + titleHeight, width * scale, height * scale);
         
         // Tải xuống
         const pngUrl = canvas.toDataURL("image/png", 1.0);
@@ -283,7 +281,6 @@ const ChartGenerator: React.FC = () => {
         downloadLink.click();
         document.body.removeChild(downloadLink);
         
-        // Dọn dẹp bộ nhớ
         URL.revokeObjectURL(url);
     };
     
@@ -603,11 +600,9 @@ const ChartGenerator: React.FC = () => {
            </div>
 
            <div className="flex-1 overflow-auto border border-gray-200 rounded-lg bg-white relative">
-               {/* Added relative to container and standard table structure to support sticky header */}
                <table className="w-full text-sm min-w-full border-collapse">
                    <thead className="bg-gray-50 sticky top-0 z-30 shadow-sm">
                        <tr>
-                           {/* Label Column: Sticky Left and Auto-width */}
                            <th className="p-2 text-left text-xs font-semibold text-gray-500 sticky left-0 z-40 bg-gray-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-b border-r border-gray-200 min-w-[120px]">
                                Nhãn
                            </th>
@@ -622,14 +617,11 @@ const ChartGenerator: React.FC = () => {
                    <tbody className="divide-y divide-gray-100">
                        {data.map((row, idx) => (
                            <tr key={row.id} className="group hover:bg-gray-50">
-                               {/* Label Cell: Sticky Left + Grid Stack Trick for Auto Width */}
                                <td className="p-1 sticky left-0 bg-white group-hover:bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-gray-100">
                                    <div className="grid grid-cols-1">
-                                       {/* Invisible span to force width based on content */}
                                        <span className="invisible row-start-1 col-start-1 p-2 font-medium text-sm whitespace-pre px-3">
                                            {row.label || 'Placeholder'}
                                        </span>
-                                       {/* Actual Input */}
                                        <input 
                                           value={row.label} 
                                           onChange={e => updateRowData(row.id, 'label', e.target.value)}
@@ -690,7 +682,13 @@ const ChartGenerator: React.FC = () => {
                     </ResponsiveContainer>
                 </div>
 
-                <div className="mt-4 flex justify-end">
+                <div className="mt-4 flex justify-end gap-3">
+                    <button 
+                        onClick={handleDownloadImage}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium shadow-sm hover:bg-gray-50 hover:text-violet-600 transition-all text-sm hover:-translate-y-0.5"
+                    >
+                        <ImageIcon className="w-4 h-4" /> Lưu ảnh (PNG)
+                    </button>
                     <button 
                         onClick={handleAnalyze}
                         disabled={isAnalyzing}
