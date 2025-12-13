@@ -471,7 +471,7 @@ const ChartGenerator: React.FC = () => {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
         
         {/* LEFT: CONFIG */}
-        <div className="lg:col-span-4 bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+        <div className="lg:col-span-5 bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
            
            {savedCharts.length > 0 && (
                <div className="mb-4 pb-4 border-b border-gray-100 flex-shrink-0">
@@ -586,7 +586,8 @@ const ChartGenerator: React.FC = () => {
                    <table className="w-full text-sm min-w-full">
                        <thead className="bg-gray-50 sticky top-0 z-10">
                            <tr>
-                               <th className="p-2 text-left text-xs font-semibold text-gray-500 w-24 sticky left-0 bg-gray-50 z-20 shadow-r">Nhãn</th>
+                               {/* Increased min-width for Label column */}
+                               <th className="p-2 text-left text-xs font-semibold text-gray-500 min-w-[200px] sticky left-0 bg-gray-50 z-20 shadow-r border-r border-gray-100">Nhãn</th>
                                {seriesList.map(s => (
                                    <th key={s.id} className="p-2 text-left text-xs font-semibold text-gray-500 min-w-[100px]" style={{color: s.color}}>
                                        {s.name}
@@ -598,11 +599,12 @@ const ChartGenerator: React.FC = () => {
                        <tbody className="divide-y divide-gray-100">
                            {data.map((row, idx) => (
                                <tr key={row.id} className="group hover:bg-gray-50">
-                                   <td className="p-1 sticky left-0 bg-white group-hover:bg-gray-50 z-10 shadow-r">
+                                   <td className="p-1 sticky left-0 bg-white group-hover:bg-gray-50 z-10 shadow-r border-r border-gray-100">
                                        <input 
                                           value={row.label} 
                                           onChange={e => updateRowData(row.id, 'label', e.target.value)}
-                                          className="w-full p-1 bg-transparent focus:bg-white rounded border border-transparent focus:border-violet-300 outline-none font-medium"
+                                          className="w-full p-2 bg-transparent focus:bg-white rounded border border-transparent focus:border-violet-300 outline-none font-medium text-sm"
+                                          placeholder="Nhập tên..."
                                        />
                                    </td>
                                    {seriesList.map(s => (
@@ -611,7 +613,7 @@ const ChartGenerator: React.FC = () => {
                                               type="text"
                                               value={formatInputDisplay(row[s.id])} 
                                               onChange={e => updateRowData(row.id, s.id, e.target.value)}
-                                              className="w-full p-1 bg-transparent focus:bg-white rounded border border-transparent focus:border-violet-300 outline-none text-right font-mono text-xs"
+                                              className="w-full p-2 bg-transparent focus:bg-white rounded border border-transparent focus:border-violet-300 outline-none text-right font-mono text-xs"
                                               placeholder="0"
                                            />
                                        </td>
@@ -634,7 +636,7 @@ const ChartGenerator: React.FC = () => {
         </div>
 
         {/* RIGHT: PREVIEW & AI */}
-        <div className="lg:col-span-8 flex flex-col gap-6 h-full overflow-y-auto">
+        <div className="lg:col-span-7 flex flex-col gap-6 h-full overflow-y-auto">
             {/* Chart Preview */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col p-6 min-h-[500px]">
                 <div className="flex flex-wrap gap-4 justify-between items-center mb-6">

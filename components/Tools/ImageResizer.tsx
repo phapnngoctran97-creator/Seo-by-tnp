@@ -4,7 +4,7 @@ import {
   Move, Upload, Download, Lock, Unlock, RefreshCw, 
   Smartphone, Monitor, Layers, Image as ImageIcon, 
   Trash2, Play, Grid3X3, RotateCw, RotateCcw, 
-  ZoomIn, MousePointer2, Settings, Crosshair, Maximize, ArrowRightLeft, FileImage, CheckCircle
+  ZoomIn, MousePointer2, Settings, Crosshair, Maximize, ArrowRightLeft, FileImage, CheckCircle, X
 } from 'lucide-react';
 
 interface Preset {
@@ -376,60 +376,81 @@ const ImageResizer: React.FC = () => {
     <div className="flex h-[calc(100vh-64px)] bg-gray-100 overflow-hidden">
         
         {/* LEFT SIDEBAR: CONTROLS */}
-        <div className="w-80 bg-white border-r border-gray-200 flex flex-col z-10 shadow-xl flex-shrink-0">
+        <div className="w-96 bg-white border-r border-gray-200 flex flex-col z-10 shadow-xl flex-shrink-0">
            
-           <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+           <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white">
                <h3 className="font-bold text-gray-800 flex items-center gap-2">
                    <Settings size={18} className="text-gray-500" /> Cấu Hình
                </h3>
                {activeFile && (
-                   <button onClick={setCanvasToOriginal} className="text-[10px] bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100" title="Đặt kích thước bằng ảnh gốc">
+                   <button onClick={setCanvasToOriginal} className="text-[10px] bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full hover:bg-blue-100 font-medium" title="Đặt kích thước bằng ảnh gốc">
                        Auto Size
                    </button>
                )}
            </div>
 
-           <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
+           <div className="flex-1 overflow-y-auto p-5 space-y-8 custom-scrollbar">
                {/* 1. Dimensions */}
                <div className="space-y-3">
-                   <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Kích thước (Output)</label>
+                   <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">Kích thước (Output)</label>
                    
-                   <div className="grid grid-cols-2 gap-2">
-                       {PRESETS.map((p, idx) => (
-                           <button key={idx} onClick={() => { setWidth(p.w); setHeight(p.h); }} className={`flex items-center gap-2 px-2 py-2 text-xs border rounded transition-all truncate ${width === p.w && height === p.h ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-blue-300 bg-white text-gray-600'}`}>
-                               <p.icon size={12} /> {p.label}
-                           </button>
-                       ))}
+                   <div className="flex gap-2">
+                       <div className="flex-1">
+                           <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all">
+                               <input 
+                                   type="number" 
+                                   value={width} 
+                                   onChange={e => setWidth(parseInt(e.target.value) || '')} 
+                                   className="w-full p-2.5 text-center font-bold text-gray-700 outline-none" 
+                                   placeholder="W" 
+                               />
+                               <div className="w-px h-6 bg-gray-300"></div>
+                               <input 
+                                   type="number" 
+                                   value={height} 
+                                   onChange={e => setHeight(parseInt(e.target.value) || '')} 
+                                   className="w-full p-2.5 text-center font-bold text-gray-700 outline-none" 
+                                   placeholder="H" 
+                               />
+                           </div>
+                       </div>
+                       
+                       <div className="w-12 h-12 flex-shrink-0 border border-gray-300 rounded-lg overflow-hidden cursor-pointer relative group">
+                           <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer p-0 border-0" />
+                           <div className="absolute inset-0 pointer-events-none flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-colors">
+                               <div className="w-4 h-4 rounded-full border border-black/20" style={{backgroundColor: bgColor}}></div>
+                           </div>
+                       </div>
                    </div>
 
-                   <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-lg border border-gray-200">
-                       <input type="number" value={width} onChange={e => setWidth(parseInt(e.target.value) || '')} className="flex-1 p-1.5 bg-transparent text-sm text-center font-bold focus:outline-none" placeholder="W" />
-                       <span className="text-gray-400 text-xs">X</span>
-                       <input type="number" value={height} onChange={e => setHeight(parseInt(e.target.value) || '')} className="flex-1 p-1.5 bg-transparent text-sm text-center font-bold focus:outline-none" placeholder="H" />
-                       <div className="w-px h-4 bg-gray-300"></div>
-                       <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)} className="w-6 h-6 rounded cursor-pointer border-none bg-transparent" />
+                   <div className="grid grid-cols-2 gap-2 mt-2">
+                       {PRESETS.map((p, idx) => (
+                           <button key={idx} onClick={() => { setWidth(p.w); setHeight(p.h); }} className={`flex items-center justify-center gap-1.5 px-2 py-2 text-xs border rounded transition-all truncate ${width === p.w && height === p.h ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold' : 'border-gray-200 hover:border-blue-300 bg-white text-gray-600'}`}>
+                               {p.label}
+                           </button>
+                       ))}
                    </div>
                </div>
 
                {/* 2. Watermark */}
-               <div className="space-y-3 pt-4 border-t border-dashed border-gray-200">
+               <div className="space-y-4 pt-6 border-t border-dashed border-gray-200">
                    <div className="flex justify-between items-center">
                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
                            <Layers size={14}/> Watermark
                        </label>
-                       <div className="relative inline-block w-8 mr-1 align-middle select-none">
-                            <input type="checkbox" checked={wmSettings.enabled} onChange={(e) => setWmSettings(p => ({...p, enabled: e.target.checked}))} className="absolute block w-4 h-4 rounded-full bg-white border-2 appearance-none cursor-pointer checked:right-0 right-4 top-0 bottom-0 m-auto transition-all duration-300 z-10 checked:border-blue-600"/>
-                            <div className={`block overflow-hidden h-4 rounded-full cursor-pointer transition-colors ${wmSettings.enabled ? 'bg-blue-200' : 'bg-gray-300'}`}></div>
-                       </div>
+                       <label className="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" checked={wmSettings.enabled} onChange={(e) => setWmSettings(p => ({...p, enabled: e.target.checked}))} className="sr-only peer"/>
+                            <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                       </label>
                    </div>
 
                    {wmSettings.enabled && (
-                       <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                       <div className="space-y-4 animate-in fade-in slide-in-from-top-2 bg-gray-50 p-3 rounded-xl border border-gray-200">
                            {!wmSettings.imageUrl ? (
-                               <label className="flex items-center justify-center p-4 border-2 border-dashed border-blue-200 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors">
+                               <label className="flex items-center justify-center p-4 border-2 border-dashed border-blue-300 bg-white rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
                                    <div className="text-center">
-                                       <Upload size={16} className="mx-auto text-blue-500 mb-1"/> 
-                                       <span className="text-xs text-blue-600 font-bold">Upload Logo</span>
+                                       <Upload size={20} className="mx-auto text-blue-500 mb-1"/> 
+                                       <span className="text-xs text-blue-700 font-bold">Tải Logo (PNG)</span>
                                    </div>
                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => {
                                        const f = e.target.files?.[0];
@@ -445,37 +466,42 @@ const ImageResizer: React.FC = () => {
                                    }} />
                                </label>
                            ) : (
-                               <div className="flex items-center gap-2 bg-gray-50 p-2 rounded border border-gray-200">
-                                   <img src={wmSettings.imageUrl} className="w-8 h-8 object-contain bg-white border rounded" alt="logo"/>
-                                   <div className="flex-1 min-w-0 text-xs font-medium text-gray-700 truncate">Logo.png</div>
-                                   <button onClick={() => setWmSettings(p => ({...p, image: null, imageUrl: null}))} className="text-xs text-red-500 hover:bg-red-50 p-1 rounded">Xóa</button>
+                               <div className="flex items-center gap-3 bg-white p-2 rounded border border-gray-200 shadow-sm">
+                                   <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center border overflow-hidden">
+                                       <img src={wmSettings.imageUrl} className="w-full h-full object-contain" alt="logo"/>
+                                   </div>
+                                   <div className="flex-1 min-w-0">
+                                       <div className="text-xs font-bold text-gray-700">Logo đã chọn</div>
+                                       <button onClick={() => setWmSettings(p => ({...p, image: null, imageUrl: null}))} className="text-[10px] text-red-500 hover:text-red-700 font-medium">Thay đổi</button>
+                                   </div>
                                </div>
                            )}
 
-                           <div className="flex bg-gray-100 p-1 rounded-lg">
-                               <button onClick={() => setWmSettings(p => ({...p, mode: 'single'}))} className={`flex-1 text-[10px] font-bold py-1.5 rounded ${wmSettings.mode === 'single' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>Single</button>
-                               <button onClick={() => setWmSettings(p => ({...p, mode: 'tiled'}))} className={`flex-1 text-[10px] font-bold py-1.5 rounded ${wmSettings.mode === 'tiled' ? 'bg-white shadow text-blue-600' : 'text-gray-500'}`}>Tiled</button>
+                           <div className="flex bg-gray-200 p-1 rounded-lg">
+                               <button onClick={() => setWmSettings(p => ({...p, mode: 'single'}))} className={`flex-1 text-[10px] font-bold py-1.5 rounded ${wmSettings.mode === 'single' ? 'bg-white shadow text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}>1 Cái (Single)</button>
+                               <button onClick={() => setWmSettings(p => ({...p, mode: 'tiled'}))} className={`flex-1 text-[10px] font-bold py-1.5 rounded ${wmSettings.mode === 'tiled' ? 'bg-white shadow text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}>Lặp lại (Tiled)</button>
                            </div>
 
-                           <div className="space-y-3">
+                           <div className="space-y-3 pt-1">
                                <div className="space-y-1">
-                                   <div className="flex justify-between text-xs text-gray-500"><span>Size</span> <span>{wmSettings.scale}%</span></div>
-                                   <input type="range" min="1" max="100" value={wmSettings.scale} onChange={e => setWmSettings(p => ({...p, scale: parseInt(e.target.value)}))} className="w-full h-1.5 bg-gray-200 rounded-lg accent-blue-600" />
+                                   <div className="flex justify-between text-[10px] font-bold text-gray-500 uppercase"><span>Kích thước</span> <span>{wmSettings.scale}%</span></div>
+                                   <input type="range" min="1" max="100" value={wmSettings.scale} onChange={e => setWmSettings(p => ({...p, scale: parseInt(e.target.value)}))} className="w-full h-1.5 bg-gray-300 rounded-lg accent-blue-600 appearance-none cursor-pointer" />
                                </div>
                                <div className="space-y-1">
-                                   <div className="flex justify-between text-xs text-gray-500"><span>Opacity</span> <span>{Math.round(wmSettings.opacity * 100)}%</span></div>
-                                   <input type="range" min="0.1" max="1" step="0.1" value={wmSettings.opacity} onChange={e => setWmSettings(p => ({...p, opacity: parseFloat(e.target.value)}))} className="w-full h-1.5 bg-gray-200 rounded-lg accent-blue-600" />
+                                   <div className="flex justify-between text-[10px] font-bold text-gray-500 uppercase"><span>Độ mờ</span> <span>{Math.round(wmSettings.opacity * 100)}%</span></div>
+                                   <input type="range" min="0.1" max="1" step="0.1" value={wmSettings.opacity} onChange={e => setWmSettings(p => ({...p, opacity: parseFloat(e.target.value)}))} className="w-full h-1.5 bg-gray-300 rounded-lg accent-blue-600 appearance-none cursor-pointer" />
                                </div>
                                <div className="space-y-1">
-                                   <div className="flex justify-between text-xs text-gray-500"><span>Rotate</span> <span>{wmSettings.rotation}°</span></div>
-                                   <input type="range" min="-180" max="180" value={wmSettings.rotation} onChange={e => setWmSettings(p => ({...p, rotation: parseInt(e.target.value)}))} className="w-full h-1.5 bg-gray-200 rounded-lg accent-blue-600" />
+                                   <div className="flex justify-between text-[10px] font-bold text-gray-500 uppercase"><span>Xoay</span> <span>{wmSettings.rotation}°</span></div>
+                                   <input type="range" min="-180" max="180" value={wmSettings.rotation} onChange={e => setWmSettings(p => ({...p, rotation: parseInt(e.target.value)}))} className="w-full h-1.5 bg-gray-300 rounded-lg accent-blue-600 appearance-none cursor-pointer" />
                                </div>
+                               
                                {wmSettings.mode === 'tiled' && (
-                                   <div className="space-y-1 pt-2 border-t border-dashed border-gray-200">
-                                       <div className="flex justify-between text-xs text-gray-500"><span>Density</span> <span>{wmSettings.density}x</span></div>
-                                       <input type="range" min="1" max="10" value={wmSettings.density} onChange={e => setWmSettings(p => ({...p, density: parseInt(e.target.value)}))} className="w-full h-1.5 bg-gray-200 rounded-lg accent-blue-600" />
-                                       <label className="flex items-center gap-2 text-xs text-gray-600 pt-1">
-                                           <input type="checkbox" checked={wmSettings.stagger} onChange={e => setWmSettings(p => ({...p, stagger: e.target.checked}))} className="rounded text-blue-600"/> So le (Stagger)
+                                   <div className="space-y-2 pt-2 border-t border-gray-200 border-dashed mt-2">
+                                       <div className="flex justify-between text-[10px] font-bold text-gray-500 uppercase"><span>Mật độ</span> <span>{wmSettings.density}x</span></div>
+                                       <input type="range" min="1" max="10" value={wmSettings.density} onChange={e => setWmSettings(p => ({...p, density: parseInt(e.target.value)}))} className="w-full h-1.5 bg-gray-300 rounded-lg accent-blue-600 appearance-none cursor-pointer" />
+                                       <label className="flex items-center gap-2 text-xs text-gray-700 font-medium pt-1 cursor-pointer">
+                                           <input type="checkbox" checked={wmSettings.stagger} onChange={e => setWmSettings(p => ({...p, stagger: e.target.checked}))} className="rounded text-blue-600 focus:ring-blue-500"/> Sắp xếp so le
                                        </label>
                                    </div>
                                )}
@@ -489,17 +515,17 @@ const ImageResizer: React.FC = () => {
                {files.some(f => f.status === 'done') ? (
                    <button 
                         onClick={downloadAll}
-                        className="w-full py-3 rounded-lg font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all bg-green-600 hover:bg-green-700 hover:-translate-y-1"
+                        className="w-full py-3.5 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all bg-green-600 hover:bg-green-700 hover:-translate-y-1 active:translate-y-0"
                     >
-                        <Download size={18}/> Tải Tất Cả
+                        <Download size={20}/> Tải Tất Cả
                     </button>
                ) : (
                    <button 
                         onClick={processBatch}
                         disabled={files.length === 0 || isProcessing}
-                        className={`w-full py-3 rounded-lg font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all ${files.length===0 || isProcessing ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:-translate-y-1'}`}
+                        className={`w-full py-3.5 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all ${files.length===0 || isProcessing ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:-translate-y-1 active:translate-y-0'}`}
                     >
-                        {isProcessing ? <RefreshCw className="animate-spin" size={18}/> : <Play size={18}/>} Xử Lý Ảnh
+                        {isProcessing ? <RefreshCw className="animate-spin" size={20}/> : <Play size={20}/>} Xử Lý Ảnh
                     </button>
                )}
            </div>
@@ -517,7 +543,7 @@ const ImageResizer: React.FC = () => {
                 <div className="w-px h-6 bg-gray-300 mx-1 my-auto"></div>
                 <div className="flex items-center gap-2 px-2">
                     <ZoomIn size={14} className="text-gray-400"/>
-                    <input type="range" min="0.1" max="3" step="0.1" value={activeFile?.transform.scale || 1} onChange={e => updateActiveTransform({scale: parseFloat(e.target.value)})} className="w-20 h-1 bg-gray-300 rounded-lg accent-blue-600" />
+                    <input type="range" min="0.1" max="3" step="0.1" value={activeFile?.transform.scale || 1} onChange={e => updateActiveTransform({scale: parseFloat(e.target.value)})} className="w-20 h-1 bg-gray-300 rounded-lg accent-blue-600 appearance-none cursor-pointer" />
                 </div>
                 
                 {/* Download Button for Active File */}
@@ -628,45 +654,45 @@ const ImageResizer: React.FC = () => {
 
             {/* Bottom File List */}
             {files.length > 0 && (
-                <div className="h-24 bg-white border-t border-gray-200 flex items-center px-4 gap-3 overflow-x-auto custom-scrollbar z-10">
-                    <button onClick={() => fileInputRef.current?.click()} className="flex-shrink-0 w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50 transition-all">
-                        <Upload size={20} />
+                <div className="h-28 bg-white border-t border-gray-200 flex items-center px-4 gap-3 overflow-x-auto custom-scrollbar z-10">
+                    <button onClick={() => fileInputRef.current?.click()} className="flex-shrink-0 w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50 transition-all">
+                        <Upload size={24} />
                         <span className="text-[10px] font-bold mt-1">Thêm</span>
                     </button>
                     {files.map(f => (
                         <div 
                             key={f.id} 
                             onClick={() => setSelectedFileId(f.id)}
-                            className={`flex-shrink-0 w-48 p-2 rounded-lg border cursor-pointer flex items-center gap-3 transition-all ${selectedFileId === f.id ? 'bg-blue-50 border-blue-400 ring-1 ring-blue-200' : 'bg-white border-gray-200 hover:border-gray-300'}`}
+                            className={`flex-shrink-0 w-56 p-2 rounded-xl border cursor-pointer flex items-center gap-3 transition-all relative ${selectedFileId === f.id ? 'bg-blue-50 border-blue-400 ring-1 ring-blue-200' : 'bg-white border-gray-200 hover:border-gray-300'}`}
                         >
-                            <img src={f.preview} className="w-10 h-10 object-cover rounded bg-gray-100" />
+                            <img src={f.preview} className="w-12 h-12 object-cover rounded-lg bg-gray-100" />
                             <div className="flex-1 min-w-0">
-                                <div className="text-xs font-bold text-gray-700 truncate">{f.file.name}</div>
-                                <div className="text-[10px] text-gray-400">{Math.round(f.originalSize/1024)} KB</div>
+                                <div className="text-sm font-bold text-gray-800 truncate mb-0.5">{f.file.name}</div>
+                                <div className="text-[10px] text-gray-500">{Math.round(f.originalSize/1024)} KB</div>
                             </div>
                             
                             {/* Download Button in List */}
-                            {f.status === 'done' && f.resultUrl && (
+                            {f.status === 'done' && f.resultUrl ? (
                                 <a 
                                     href={f.resultUrl} 
                                     download={`processed_${f.file.name}`}
                                     onClick={(e) => e.stopPropagation()}
-                                    className="p-1.5 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                                    className="p-2 bg-green-100 text-green-700 rounded-full hover:bg-green-200 transition-colors"
                                     title="Tải về"
                                 >
-                                    <Download size={14} />
+                                    <Download size={16} />
                                 </a>
-                            )}
+                            ) : f.status === 'done' ? (
+                                <div className="p-2"><CheckCircle size={16} className="text-green-500" /></div>
+                            ) : null}
 
-                            {f.status === 'done' && !f.resultUrl && <div className="p-1"><CheckCircle size={14} className="text-green-500" /></div>}
-
-                            <button onClick={(e) => { e.stopPropagation(); setFiles(files.filter(x => x.id !== f.id)); }} className="text-gray-300 hover:text-red-500 p-1">
-                                <Trash2 size={14}/>
+                            <button onClick={(e) => { e.stopPropagation(); setFiles(files.filter(x => x.id !== f.id)); }} className="absolute -top-2 -right-2 bg-white text-gray-400 hover:text-red-500 p-1 rounded-full shadow-md border hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100">
+                                <X size={12}/>
                             </button>
                         </div>
                     ))}
                     {files.length > 0 && (
-                        <button onClick={handleReset} className="ml-2 text-xs text-red-400 hover:text-red-600 whitespace-nowrap">
+                        <button onClick={handleReset} className="ml-2 text-xs font-medium text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors">
                             Xóa hết
                         </button>
                     )}
