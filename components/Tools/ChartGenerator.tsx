@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   BarChartBig, Plus, Trash2, PieChart as PieIcon, Activity, LineChart as LineIcon, 
   Layers, Sparkles, Loader2, ArrowUp, ArrowDown, Save, FolderOpen, X, Copy, Check,
-  Settings, Download, Grid3X3, Type, RotateCw, AlignLeft, Image as ImageIcon
+  Settings, Download, Grid3X3, Type, RotateCw, AlignLeft, Image as ImageIcon,
+  ChevronDown, ChevronRight, LayoutTemplate
 } from 'lucide-react';
 import { 
   BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, ComposedChart,
@@ -44,6 +45,18 @@ const ChartGenerator: React.FC = () => {
   const [showGrid, setShowGrid] = useState(true);
   const [showValues, setShowValues] = useState(false);
   const [rotateLabels, setRotateLabels] = useState(false);
+  
+  // Accordion State
+  const [sections, setSections] = useState({
+    library: false,
+    config: true,
+    series: true,
+    data: true
+  });
+
+  const toggleSection = (key: keyof typeof sections) => {
+    setSections(prev => ({ ...prev, [key]: !prev[key] }));
+  };
   
   const [seriesList, setSeriesList] = useState<DataSeries[]>([
     { id: 's1', name: 'Doanh thu', color: '#8b5cf6', type: 'bar', yAxisId: 'left' },
@@ -489,190 +502,245 @@ const ChartGenerator: React.FC = () => {
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
         
-        {/* LEFT: CONFIG */}
-        <div className="lg:col-span-5 bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+        {/* LEFT: CONFIG (ACCORDION STYLE) */}
+        <div className="lg:col-span-5 flex flex-col gap-3 min-h-0">
            
-           {savedCharts.length > 0 && (
-               <div className="mb-4 pb-4 border-b border-gray-100 flex-shrink-0">
-                   <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-2">
-                       <FolderOpen size={14} /> Thư viện ({savedCharts.length})
-                   </h4>
-                   <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
-                       {savedCharts.map(c => (
-                           <div key={c.id} onClick={() => loadChart(c)} className="flex-shrink-0 bg-gray-50 hover:bg-violet-50 border border-gray-200 hover:border-violet-200 rounded-lg p-2 pr-1 cursor-pointer flex items-center gap-2 group min-w-[120px]">
-                               <div className="flex-1 min-w-0">
-                                   <div className="text-sm font-medium text-gray-700 truncate">{c.name}</div>
-                                   <div className="text-[10px] text-gray-400">{new Date(c.createdAt).toLocaleDateString()}</div>
-                               </div>
-                               <button onClick={(e) => deleteChart(c.id, e)} className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                   <Trash2 size={12} />
-                               </button>
-                           </div>
-                       ))}
-                   </div>
-               </div>
-           )}
-
-           <div className="space-y-4 mb-4 flex-shrink-0">
-              <input 
-                type="text" 
-                value={title} 
-                onChange={e => setTitle(e.target.value)} 
-                className="w-full p-2 border rounded font-bold text-gray-700 focus:ring-2 focus:ring-violet-500 outline-none"
-                placeholder="Tiêu đề biểu đồ..."
-              />
-              
-              <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
-                 {['composed', 'bar', 'line', 'area', 'pie'].map((t) => (
-                     <button
-                        key={t}
-                        onClick={() => setChartType(t as any)}
-                        className={`flex-1 py-1.5 rounded text-xs font-medium uppercase transition-all ${chartType === t ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                     >
-                         {t === 'composed' ? 'Hỗn hợp' : t}
-                     </button>
-                 ))}
-              </div>
-
-              {/* MOVED: Visual Controls to Left Panel */}
-              <div className="grid grid-cols-3 gap-2">
-                  <button onClick={() => setShowGrid(!showGrid)} className={`flex items-center justify-center gap-1 py-1.5 rounded text-xs font-medium border transition-colors ${showGrid ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-gray-500 border-gray-200'}`}>
-                      <Grid3X3 size={14} /> Lưới
-                  </button>
-                  <button onClick={() => setShowValues(!showValues)} className={`flex items-center justify-center gap-1 py-1.5 rounded text-xs font-medium border transition-colors ${showValues ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-gray-500 border-gray-200'}`}>
-                      <Type size={14} /> Giá trị
-                  </button>
-                  <button onClick={() => setRotateLabels(!rotateLabels)} className={`flex items-center justify-center gap-1 py-1.5 rounded text-xs font-medium border transition-colors ${rotateLabels ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-gray-500 border-gray-200'}`}>
-                      <RotateCw size={14} /> Xoay nhãn
-                  </button>
-              </div>
+           {/* Section 1: Library */}
+           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex-shrink-0">
+                <button 
+                    onClick={() => toggleSection('library')}
+                    className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+                >
+                    <span className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                        <FolderOpen size={16} /> Thư viện đã lưu ({savedCharts.length})
+                    </span>
+                    {sections.library ? <ChevronDown size={16} className="text-gray-500"/> : <ChevronRight size={16} className="text-gray-500"/>}
+                </button>
+                
+                {sections.library && (
+                    <div className="p-3 border-t border-gray-200">
+                        {savedCharts.length > 0 ? (
+                            <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+                                {savedCharts.map(c => (
+                                    <div key={c.id} onClick={() => loadChart(c)} className="flex-shrink-0 bg-gray-50 hover:bg-violet-50 border border-gray-200 hover:border-violet-200 rounded-lg p-2 pr-1 cursor-pointer flex items-center gap-2 group min-w-[120px]">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-medium text-gray-700 truncate">{c.name}</div>
+                                            <div className="text-[10px] text-gray-400">{new Date(c.createdAt).toLocaleDateString()}</div>
+                                        </div>
+                                        <button onClick={(e) => deleteChart(c.id, e)} className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Trash2 size={12} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-xs text-gray-400 italic text-center py-2">Chưa có biểu đồ nào.</p>
+                        )}
+                    </div>
+                )}
            </div>
 
-           <div className="flex-shrink-0 border-b border-gray-200 pb-4 mb-4">
-               <div className="flex justify-between items-center mb-2">
-                   <span className="text-xs font-bold text-gray-500 uppercase">Chuỗi dữ liệu</span>
-                   <button onClick={addSeries} className="text-xs flex items-center gap-1 text-violet-600 hover:bg-violet-50 px-2 py-1 rounded">
-                       <Plus size={12} /> Thêm
-                   </button>
-               </div>
-               <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
-                   {seriesList.map((s) => (
-                       <div key={s.id} className="flex flex-col gap-2 bg-gray-50 p-2 rounded border border-gray-200 group">
-                           <div className="flex items-center gap-2">
-                               <input 
-                                  type="color" 
-                                  value={s.color} 
-                                  onChange={e => updateSeries(s.id, 'color', e.target.value)} 
-                                  className="w-5 h-5 p-0 border rounded cursor-pointer flex-shrink-0"
-                                  title="Màu sắc"
-                               />
-                               <input 
-                                  value={s.name} 
-                                  onChange={e => updateSeries(s.id, 'name', e.target.value)} 
-                                  className="flex-1 min-w-0 bg-transparent text-sm focus:outline-none font-medium"
-                                  placeholder="Tên..."
-                               />
-                               {seriesList.length > 1 && (
-                                   <button onClick={() => removeSeries(s.id)} className="text-gray-400 hover:text-red-500">
-                                       <Trash2 size={14} />
-                                   </button>
-                               )}
-                           </div>
-                           
-                           {chartType === 'composed' && (
-                               <div className="flex gap-2 text-xs">
-                                   <select 
-                                      value={s.type} 
-                                      onChange={e => updateSeries(s.id, 'type', e.target.value)}
-                                      className="bg-white border rounded px-1 py-0.5 outline-none cursor-pointer"
-                                   >
-                                       <option value="bar">Cột</option>
-                                       <option value="line">Đường</option>
-                                       <option value="area">Vùng</option>
-                                   </select>
-                                   <select 
-                                      value={s.yAxisId} 
-                                      onChange={e => updateSeries(s.id, 'yAxisId', e.target.value)}
-                                      className={`border rounded px-1 py-0.5 outline-none cursor-pointer ${s.yAxisId === 'right' ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-white'}`}
-                                   >
-                                       <option value="left">Trục Trái</option>
-                                       <option value="right">Trục Phải</option>
-                                   </select>
-                               </div>
-                           )}
-                       </div>
-                   ))}
-               </div>
+           {/* Section 2: General Config */}
+           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex-shrink-0">
+                <button 
+                    onClick={() => toggleSection('config')}
+                    className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+                >
+                    <span className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                        <Settings size={16} /> Cấu hình chung
+                    </span>
+                    {sections.config ? <ChevronDown size={16} className="text-gray-500"/> : <ChevronRight size={16} className="text-gray-500"/>}
+                </button>
+
+                {sections.config && (
+                    <div className="p-4 border-t border-gray-200 space-y-4">
+                        <input 
+                            type="text" 
+                            value={title} 
+                            onChange={e => setTitle(e.target.value)} 
+                            className="w-full p-2 border rounded font-bold text-gray-700 focus:ring-2 focus:ring-violet-500 outline-none"
+                            placeholder="Tiêu đề biểu đồ..."
+                        />
+                        
+                        <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
+                            {['composed', 'bar', 'line', 'area', 'pie'].map((t) => (
+                                <button
+                                    key={t}
+                                    onClick={() => setChartType(t as any)}
+                                    className={`flex-1 py-1.5 rounded text-xs font-medium uppercase transition-all ${chartType === t ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                >
+                                    {t === 'composed' ? 'Hỗn hợp' : t}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2">
+                            <button onClick={() => setShowGrid(!showGrid)} className={`flex items-center justify-center gap-1 py-1.5 rounded text-xs font-medium border transition-colors ${showGrid ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-gray-500 border-gray-200'}`}>
+                                <Grid3X3 size={14} /> Lưới
+                            </button>
+                            <button onClick={() => setShowValues(!showValues)} className={`flex items-center justify-center gap-1 py-1.5 rounded text-xs font-medium border transition-colors ${showValues ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-gray-500 border-gray-200'}`}>
+                                <Type size={14} /> Giá trị
+                            </button>
+                            <button onClick={() => setRotateLabels(!rotateLabels)} className={`flex items-center justify-center gap-1 py-1.5 rounded text-xs font-medium border transition-colors ${rotateLabels ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-gray-500 border-gray-200'}`}>
+                                <RotateCw size={14} /> Xoay nhãn
+                            </button>
+                        </div>
+                    </div>
+                )}
            </div>
 
-           <div className="flex justify-between items-center mb-2">
-               <h3 className="font-bold text-gray-700 text-sm">Dữ liệu</h3>
-               <button onClick={addRow} className="text-xs flex items-center gap-1 bg-gray-100 text-gray-600 px-2 py-1 rounded hover:bg-gray-200">
-                   <Plus size={12} /> Dòng
-               </button>
+           {/* Section 3: Series */}
+           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex-shrink-0">
+                <button 
+                    onClick={() => toggleSection('series')}
+                    className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+                >
+                    <span className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                        <Layers size={16} /> Chuỗi dữ liệu
+                    </span>
+                    {sections.series ? <ChevronDown size={16} className="text-gray-500"/> : <ChevronRight size={16} className="text-gray-500"/>}
+                </button>
+
+                {sections.series && (
+                    <div className="p-4 border-t border-gray-200">
+                        <div className="flex justify-between items-center mb-3">
+                            <span className="text-xs text-gray-500 uppercase font-semibold">Danh sách</span>
+                            <button onClick={addSeries} className="text-xs flex items-center gap-1 text-violet-600 hover:bg-violet-50 px-2 py-1 rounded">
+                                <Plus size={12} /> Thêm
+                            </button>
+                        </div>
+                        <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                            {seriesList.map((s) => (
+                                <div key={s.id} className="flex flex-col gap-2 bg-gray-50 p-2 rounded border border-gray-200 group">
+                                    <div className="flex items-center gap-2">
+                                        <input 
+                                            type="color" 
+                                            value={s.color} 
+                                            onChange={e => updateSeries(s.id, 'color', e.target.value)} 
+                                            className="w-5 h-5 p-0 border rounded cursor-pointer flex-shrink-0"
+                                            title="Màu sắc"
+                                        />
+                                        <input 
+                                            value={s.name} 
+                                            onChange={e => updateSeries(s.id, 'name', e.target.value)} 
+                                            className="flex-1 min-w-0 bg-transparent text-sm focus:outline-none font-medium"
+                                            placeholder="Tên..."
+                                        />
+                                        {seriesList.length > 1 && (
+                                            <button onClick={() => removeSeries(s.id)} className="text-gray-400 hover:text-red-500">
+                                                <Trash2 size={14} />
+                                            </button>
+                                        )}
+                                    </div>
+                                    
+                                    {chartType === 'composed' && (
+                                        <div className="flex gap-2 text-xs">
+                                            <select 
+                                                value={s.type} 
+                                                onChange={e => updateSeries(s.id, 'type', e.target.value)}
+                                                className="bg-white border rounded px-1 py-0.5 outline-none cursor-pointer"
+                                            >
+                                                <option value="bar">Cột</option>
+                                                <option value="line">Đường</option>
+                                                <option value="area">Vùng</option>
+                                            </select>
+                                            <select 
+                                                value={s.yAxisId} 
+                                                onChange={e => updateSeries(s.id, 'yAxisId', e.target.value)}
+                                                className={`border rounded px-1 py-0.5 outline-none cursor-pointer ${s.yAxisId === 'right' ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-white'}`}
+                                            >
+                                                <option value="left">Trục Trái</option>
+                                                <option value="right">Trục Phải</option>
+                                            </select>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
            </div>
 
-           <div className="flex-1 overflow-auto border border-gray-200 rounded-lg bg-white relative">
-               {/* Added relative to container and standard table structure to support sticky header */}
-               <table className="w-full text-sm min-w-full border-collapse">
-                   <thead className="bg-gray-50 sticky top-0 z-30 shadow-sm">
-                       <tr>
-                           {/* Label Column: Sticky Left and Auto-width */}
-                           <th className="p-2 text-left text-xs font-semibold text-gray-500 sticky left-0 z-40 bg-gray-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-b border-r border-gray-200 min-w-[120px]">
-                               Nhãn
-                           </th>
-                           {seriesList.map(s => (
-                               <th key={s.id} className="p-2 text-left text-xs font-semibold text-gray-500 min-w-[100px] border-b border-gray-200" style={{color: s.color}}>
-                                   {s.name}
-                               </th>
-                           ))}
-                           <th className="w-16 border-b border-gray-200"></th>
-                       </tr>
-                   </thead>
-                   <tbody className="divide-y divide-gray-100">
-                       {data.map((row, idx) => (
-                           <tr key={row.id} className="group hover:bg-gray-50">
-                               {/* Label Cell: Sticky Left + Grid Stack Trick for Auto Width */}
-                               <td className="p-1 sticky left-0 bg-white group-hover:bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-gray-100">
-                                   <div className="grid grid-cols-1">
-                                       {/* Invisible span to force width based on content */}
-                                       <span className="invisible row-start-1 col-start-1 p-2 font-medium text-sm whitespace-pre px-3">
-                                           {row.label || 'Placeholder'}
-                                       </span>
-                                       {/* Actual Input */}
-                                       <input 
-                                          value={row.label} 
-                                          onChange={e => updateRowData(row.id, 'label', e.target.value)}
-                                          className="row-start-1 col-start-1 w-full p-2 bg-transparent focus:bg-white rounded border border-transparent focus:border-violet-300 outline-none font-medium text-sm px-3"
-                                          placeholder="Nhập tên..."
-                                       />
-                                   </div>
-                               </td>
-                               {seriesList.map(s => (
-                                   <td key={s.id} className="p-1">
-                                       <input 
-                                          type="text"
-                                          value={formatInputDisplay(row[s.id])} 
-                                          onChange={e => updateRowData(row.id, s.id, e.target.value)}
-                                          className="w-full p-2 bg-transparent focus:bg-white rounded border border-transparent focus:border-violet-300 outline-none text-right font-mono text-xs"
-                                          placeholder="0"
-                                       />
-                                   </td>
-                               ))}
-                               <td className="p-1 flex items-center justify-center gap-1">
-                                   <div className="flex flex-col">
-                                       <button onClick={() => moveRow(idx, 'up')} disabled={idx === 0} className="text-gray-300 hover:text-gray-600 disabled:opacity-30"><ArrowUp size={10}/></button>
-                                       <button onClick={() => moveRow(idx, 'down')} disabled={idx === data.length - 1} className="text-gray-300 hover:text-gray-600 disabled:opacity-30"><ArrowDown size={10}/></button>
-                                   </div>
-                                   <button onClick={() => removeRow(row.id)} className="text-gray-300 hover:text-red-500">
-                                       <Trash2 size={14} />
-                                   </button>
-                               </td>
-                           </tr>
-                       ))}
-                   </tbody>
-               </table>
+           {/* Section 4: Data Table (EXPANDED TO FILL SPACE) */}
+           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col flex-1 min-h-0">
+                <button 
+                    onClick={() => toggleSection('data')}
+                    className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors flex-shrink-0"
+                >
+                    <span className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                        <LayoutTemplate size={16} /> Bảng dữ liệu chi tiết
+                    </span>
+                    {sections.data ? <ChevronDown size={16} className="text-gray-500"/> : <ChevronRight size={16} className="text-gray-500"/>}
+                </button>
+
+                {sections.data && (
+                    <div className="flex-1 flex flex-col min-h-0 border-t border-gray-200">
+                        <div className="p-2 border-b border-gray-100 flex justify-end">
+                            <button onClick={addRow} className="text-xs flex items-center gap-1 bg-gray-100 text-gray-600 px-3 py-1.5 rounded hover:bg-gray-200 font-medium">
+                                <Plus size={12} /> Thêm Dòng
+                            </button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-auto bg-white relative">
+                            <table className="w-full text-sm min-w-full border-collapse">
+                                <thead className="bg-gray-50 sticky top-0 z-30 shadow-sm">
+                                    <tr>
+                                        <th className="p-2 text-left text-xs font-semibold text-gray-500 sticky left-0 z-40 bg-gray-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-b border-r border-gray-200 min-w-[120px]">
+                                            Nhãn
+                                        </th>
+                                        {seriesList.map(s => (
+                                            <th key={s.id} className="p-2 text-left text-xs font-semibold text-gray-500 min-w-[100px] border-b border-gray-200" style={{color: s.color}}>
+                                                {s.name}
+                                            </th>
+                                        ))}
+                                        <th className="w-16 border-b border-gray-200"></th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {data.map((row, idx) => (
+                                        <tr key={row.id} className="group hover:bg-gray-50">
+                                            <td className="p-1 sticky left-0 bg-white group-hover:bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-gray-100">
+                                                <div className="grid grid-cols-1">
+                                                    <span className="invisible row-start-1 col-start-1 p-2 font-medium text-sm whitespace-pre px-3">
+                                                        {row.label || 'Placeholder'}
+                                                    </span>
+                                                    <input 
+                                                        value={row.label} 
+                                                        onChange={e => updateRowData(row.id, 'label', e.target.value)}
+                                                        className="row-start-1 col-start-1 w-full p-2 bg-transparent focus:bg-white rounded border border-transparent focus:border-violet-300 outline-none font-medium text-sm px-3"
+                                                        placeholder="Nhập tên..."
+                                                    />
+                                                </div>
+                                            </td>
+                                            {seriesList.map(s => (
+                                                <td key={s.id} className="p-1">
+                                                    <input 
+                                                        type="text"
+                                                        value={formatInputDisplay(row[s.id])} 
+                                                        onChange={e => updateRowData(row.id, s.id, e.target.value)}
+                                                        className="w-full p-2 bg-transparent focus:bg-white rounded border border-transparent focus:border-violet-300 outline-none text-right font-mono text-xs"
+                                                        placeholder="0"
+                                                    />
+                                                </td>
+                                            ))}
+                                            <td className="p-1 flex items-center justify-center gap-1">
+                                                <div className="flex flex-col">
+                                                    <button onClick={() => moveRow(idx, 'up')} disabled={idx === 0} className="text-gray-300 hover:text-gray-600 disabled:opacity-30"><ArrowUp size={10}/></button>
+                                                    <button onClick={() => moveRow(idx, 'down')} disabled={idx === data.length - 1} className="text-gray-300 hover:text-gray-600 disabled:opacity-30"><ArrowDown size={10}/></button>
+                                                </div>
+                                                <button onClick={() => removeRow(row.id)} className="text-gray-300 hover:text-red-500">
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
            </div>
+
         </div>
 
         {/* RIGHT: PREVIEW & AI */}
