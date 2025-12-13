@@ -533,6 +533,19 @@ const ChartGenerator: React.FC = () => {
                      </button>
                  ))}
               </div>
+
+              {/* MOVED: Visual Controls to Left Panel */}
+              <div className="grid grid-cols-3 gap-2">
+                  <button onClick={() => setShowGrid(!showGrid)} className={`flex items-center justify-center gap-1 py-1.5 rounded text-xs font-medium border transition-colors ${showGrid ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-gray-500 border-gray-200'}`}>
+                      <Grid3X3 size={14} /> Lưới
+                  </button>
+                  <button onClick={() => setShowValues(!showValues)} className={`flex items-center justify-center gap-1 py-1.5 rounded text-xs font-medium border transition-colors ${showValues ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-gray-500 border-gray-200'}`}>
+                      <Type size={14} /> Giá trị
+                  </button>
+                  <button onClick={() => setRotateLabels(!rotateLabels)} className={`flex items-center justify-center gap-1 py-1.5 rounded text-xs font-medium border transition-colors ${rotateLabels ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-gray-500 border-gray-200'}`}>
+                      <RotateCw size={14} /> Xoay nhãn
+                  </button>
+              </div>
            </div>
 
            <div className="flex-shrink-0 border-b border-gray-200 pb-4 mb-4">
@@ -600,9 +613,11 @@ const ChartGenerator: React.FC = () => {
            </div>
 
            <div className="flex-1 overflow-auto border border-gray-200 rounded-lg bg-white relative">
+               {/* Added relative to container and standard table structure to support sticky header */}
                <table className="w-full text-sm min-w-full border-collapse">
                    <thead className="bg-gray-50 sticky top-0 z-30 shadow-sm">
                        <tr>
+                           {/* Label Column: Sticky Left and Auto-width */}
                            <th className="p-2 text-left text-xs font-semibold text-gray-500 sticky left-0 z-40 bg-gray-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-b border-r border-gray-200 min-w-[120px]">
                                Nhãn
                            </th>
@@ -617,11 +632,14 @@ const ChartGenerator: React.FC = () => {
                    <tbody className="divide-y divide-gray-100">
                        {data.map((row, idx) => (
                            <tr key={row.id} className="group hover:bg-gray-50">
+                               {/* Label Cell: Sticky Left + Grid Stack Trick for Auto Width */}
                                <td className="p-1 sticky left-0 bg-white group-hover:bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-gray-100">
                                    <div className="grid grid-cols-1">
+                                       {/* Invisible span to force width based on content */}
                                        <span className="invisible row-start-1 col-start-1 p-2 font-medium text-sm whitespace-pre px-3">
                                            {row.label || 'Placeholder'}
                                        </span>
+                                       {/* Actual Input */}
                                        <input 
                                           value={row.label} 
                                           onChange={e => updateRowData(row.id, 'label', e.target.value)}
@@ -661,19 +679,11 @@ const ChartGenerator: React.FC = () => {
         <div className="lg:col-span-7 flex flex-col gap-6 h-full overflow-y-auto">
             {/* Chart Preview */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col p-6 min-h-[500px]">
-                <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
-                    <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
+                {/* CLEAN HEADER: Only Title */}
+                <div className="mb-6 text-center">
+                    <h3 className="font-bold text-gray-800 text-xl">
                         {title}
-                        <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded border border-gray-200">Preview</span>
                     </h3>
-                    
-                    <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-lg border border-gray-200">
-                        <button onClick={() => setShowGrid(!showGrid)} className={`p-1.5 rounded transition-colors ${showGrid ? 'bg-white shadow text-violet-600' : 'text-gray-400 hover:text-gray-600'}`} title="Lưới"><Grid3X3 size={16} /></button>
-                        <button onClick={() => setShowValues(!showValues)} className={`p-1.5 rounded transition-colors ${showValues ? 'bg-white shadow text-violet-600' : 'text-gray-400 hover:text-gray-600'}`} title="Hiển thị giá trị"><Type size={16} /></button>
-                        <button onClick={() => setRotateLabels(!rotateLabels)} className={`p-1.5 rounded transition-colors ${rotateLabels ? 'bg-white shadow text-violet-600' : 'text-gray-400 hover:text-gray-600'}`} title="Xoay nhãn"><RotateCw size={16} /></button>
-                        <div className="w-px h-4 bg-gray-300 mx-1"></div>
-                        <button onClick={handleDownloadImage} className="p-1.5 rounded hover:bg-white hover:shadow hover:text-violet-600 text-gray-500 transition-colors" title="Tải ảnh PNG"><Download size={16} /></button>
-                    </div>
                 </div>
                 
                 <div className="flex-1 w-full min-h-[400px]" ref={chartRef}>
@@ -682,7 +692,8 @@ const ChartGenerator: React.FC = () => {
                     </ResponsiveContainer>
                 </div>
 
-                <div className="mt-4 flex justify-end gap-3">
+                {/* Footer Buttons - Separated from Chart */}
+                <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-gray-100">
                     <button 
                         onClick={handleDownloadImage}
                         className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium shadow-sm hover:bg-gray-50 hover:text-violet-600 transition-all text-sm hover:-translate-y-0.5"
