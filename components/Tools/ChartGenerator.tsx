@@ -16,7 +16,7 @@ interface DataSeries {
   name: string;
   color: string;
   type: 'bar' | 'line' | 'area';
-  yAxisId: 'left' | 'right'; // Manual control over axis
+  yAxisId: 'left' | 'right'; 
 }
 
 interface ChartRow {
@@ -41,18 +41,15 @@ const ChartGenerator: React.FC = () => {
   const [title, setTitle] = useState('Báo cáo Doanh thu & Chi phí');
   const [chartType, setChartType] = useState<'bar' | 'line' | 'area' | 'pie' | 'composed'>('composed');
   
-  // Chart Visual Settings
   const [showGrid, setShowGrid] = useState(true);
   const [showValues, setShowValues] = useState(false);
   const [rotateLabels, setRotateLabels] = useState(false);
   
-  // Dynamic Series Management
   const [seriesList, setSeriesList] = useState<DataSeries[]>([
     { id: 's1', name: 'Doanh thu', color: '#8b5cf6', type: 'bar', yAxisId: 'left' },
     { id: 's2', name: 'Lợi nhuận (%)', color: '#f59e0b', type: 'line', yAxisId: 'right' }
   ]);
 
-  // Initial Data
   const [data, setData] = useState<ChartRow[]>([
     { id: '1', label: 'Tháng 1', s1: 150000000, s2: 15 },
     { id: '2', label: 'Tháng 2', s1: 120000000, s2: 12 },
@@ -60,19 +57,16 @@ const ChartGenerator: React.FC = () => {
     { id: '4', label: 'Tháng 4', s1: 200000000, s2: 22 },
   ]);
 
-  // AI Analysis State
   const [analysisResult, setAnalysisResult] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [copiedAnalysis, setCopiedAnalysis] = useState(false);
 
-  // Saved Charts State
   const [savedCharts, setSavedCharts] = useState<SavedChart[]>([]);
   const [saveName, setSaveName] = useState('');
   const [showSaveInput, setShowSaveInput] = useState(false);
 
   const chartRef = useRef<HTMLDivElement>(null);
 
-  // Load Saved Charts on Mount
   useEffect(() => {
     const saved = localStorage.getItem('saved_charts');
     if (saved) {
@@ -82,8 +76,6 @@ const ChartGenerator: React.FC = () => {
     }
   }, []);
 
-  // --- PARSING HELPERS ---
-  // Convert "1.5k" -> 1500, "2M" -> 2000000
   const parseFriendlyNumber = (val: string): number | string => {
     if (!val) return '';
     const clean = val.toLowerCase().trim();
@@ -91,7 +83,6 @@ const ChartGenerator: React.FC = () => {
     if (clean.endsWith('m')) return parseFloat(clean) * 1000000;
     if (clean.endsWith('b')) return parseFloat(clean) * 1000000000;
     
-    // Remove commas for standard number parsing
     const standard = clean.replace(/,/g, '');
     return isNaN(Number(standard)) ? val : Number(standard);
   };
@@ -105,12 +96,10 @@ const ChartGenerator: React.FC = () => {
 
   const formatInputDisplay = (val: string | number) => {
     if (val === '' || val === undefined) return '';
-    // If it's a large number, format with commas, otherwise show as is (for '1k' text input preservation while editing)
     if (typeof val === 'number') return val.toLocaleString('en-US');
     return val;
   };
 
-  // --- ACTIONS ---
   const saveChart = () => {
     if (!saveName.trim()) {
       alert("Vui lòng đặt tên cho biểu đồ.");
@@ -198,80 +187,91 @@ const ChartGenerator: React.FC = () => {
   };
 
   const updateRowData = (rowId: string, key: string, rawVal: string) => {
-    // If it's a value, we try to parse it immediately to number if possible, or keep as string if it has suffix
     let val: string | number = rawVal;
     
     if (key.startsWith('s')) {
-       // Check if user is typing "1k" or "1m"
        if (rawVal.match(/[kmbKMB]$/)) {
-          // If ends with suffix, keep as string for display, but when rendering chart we parse it
           val = rawVal; 
        } else {
-          // Otherwise try to keep as number
           val = rawVal.replace(/,/g, ''); 
-          if (!isNaN(Number(val)) && val !== '') {
-             // Don't convert to Number immediately if user is typing "10." (decimal)
-             if (!rawVal.endsWith('.')) {
-                // val = Number(val); // Actually, keep as string in state to avoid cursor jumping, parse in render
-             }
-          }
        }
     }
     setData(data.map(row => row.id === rowId ? { ...row, [key]: val } : row));
   };
 
-  // --- EXPORT IMAGE ---
+  // --- FIXED DOWNLOAD FUNCTION ---
   const handleDownloadImage = () => {
-    // Basic SVG download logic
-    const svg = document.querySelector('.recharts-surface');
-    if (svg) {
-      const svgData = new XMLSerializer().serializeToString(svg);
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      const img = new Image();
-      const svgBlob = new Blob([svgData], {type: "image/svg+xml;charset=utf-8"});
-      const url = URL.createObjectURL(svgBlob);
-      
-      img.onload = function() {
-        // Create a larger canvas with white background
-        canvas.width = (svg.clientWidth || 800) + 40; 
-        canvas.height = (svg.clientHeight || 400) + 60; // Add space for title
+    if (!chartRef.current) {
+        alert("Chưa có biểu đồ.");
+        return;
+    }
+
+    const svg = chartRef.current.querySelector('.recharts-surface');
+    if (!svg) {
+        alert("Lỗi không tìm thấy biểu đồ.");
+        return;
+    }
+
+    // Clone SVG to modify without affecting view
+    const svgClone = svg.cloneNode(true) as SVGElement;
+    
+    // Explicitly set namespaces
+    svgClone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    
+    // Add white background rect to SVG
+    const bgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    bgRect.setAttribute("width", "100%");
+    bgRect.setAttribute("height", "100%");
+    bgRect.setAttribute("fill", "#ffffff");
+    svgClone.insertBefore(bgRect, svgClone.firstChild);
+
+    // Serialize
+    const svgData = new XMLSerializer().serializeToString(svgClone);
+    
+    // Important: Use encodeURIComponent for UTF-8 support (Vietnam char)
+    const svgUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgData)}`;
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+
+    img.onload = () => {
+        const titleHeight = 50;
+        const padding = 20;
+        
+        canvas.width = (svg.clientWidth || 800) + (padding * 2);
+        canvas.height = (svg.clientHeight || 400) + titleHeight + (padding * 2);
         
         if (ctx) {
+            // White Background for Canvas
             ctx.fillStyle = "white";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             // Draw Title
-            ctx.fillStyle = "#1f2937";
-            ctx.font = "bold 20px sans-serif";
+            ctx.fillStyle = "#111827"; // Gray-900
+            ctx.font = "bold 20px Inter, sans-serif";
             ctx.textAlign = "center";
-            ctx.fillText(title, canvas.width/2, 30);
+            ctx.fillText(title, canvas.width/2, 40);
 
             // Draw Chart
-            ctx.drawImage(img, 20, 50);
+            ctx.drawImage(img, padding, titleHeight + padding);
             
             const pngUrl = canvas.toDataURL("image/png");
             const downloadLink = document.createElement("a");
             downloadLink.href = pngUrl;
-            downloadLink.download = `${title}.png`;
+            downloadLink.download = `${title.replace(/\s+/g, '_')}.png`;
             document.body.appendChild(downloadLink);
             downloadLink.click();
             document.body.removeChild(downloadLink);
         }
-        URL.revokeObjectURL(url);
-      };
-      img.src = url;
-    } else {
-        alert("Chưa có biểu đồ để tải.");
-    }
+    };
+    img.src = svgUrl;
   };
 
-  // --- AI ANALYSIS ---
   const handleAnalyze = async () => {
     setIsAnalyzing(true);
     setAnalysisResult('');
     try {
-      // Prepare clean data for AI
       const aiData = data.map(row => {
           const item: any = { label: row.label };
           seriesList.forEach(s => {
@@ -302,9 +302,7 @@ const ChartGenerator: React.FC = () => {
     setTimeout(() => setCopiedAnalysis(false), 2000);
   };
 
-  // --- RENDER CHART ---
   const renderChart = () => {
-    // 1. Process Data for Recharts (Parse 1k, 1m to real numbers)
     const processedData = data.map(row => {
         const cleanRow: any = { ...row };
         seriesList.forEach(s => {
@@ -314,7 +312,6 @@ const ChartGenerator: React.FC = () => {
         return cleanRow;
     });
 
-    // 2. Check Axes
     const hasLeft = seriesList.some(s => s.yAxisId === 'left');
     const hasRight = seriesList.some(s => s.yAxisId === 'right');
 
@@ -331,11 +328,10 @@ const ChartGenerator: React.FC = () => {
             textAnchor={rotateLabels ? "end" : "middle"}
             height={rotateLabels ? 80 : 30}
             tick={{fontSize: 12}}
-            interval={0} // Show all labels if possible
+            interval={0} 
         />
     );
     
-    // Y-Axis Configuration
     const YAxisLeft = <YAxis yAxisId="left" tickFormatter={formatCompactNumber} width={45} tick={{fontSize: 12}} />;
     const YAxisRight = <YAxis yAxisId="right" orientation="right" tickFormatter={formatCompactNumber} width={45} tick={{fontSize: 12}} />;
     
@@ -349,7 +345,6 @@ const ChartGenerator: React.FC = () => {
 
     const ChartGrid = showGrid ? <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" /> : null;
 
-    // PIE CHART
     if (chartType === 'pie') {
         const firstSeries = seriesList[0];
         const pieData = processedData.map(d => ({ name: d.label, value: Number(d[firstSeries.id]) || 0 }));
@@ -377,7 +372,6 @@ const ChartGenerator: React.FC = () => {
         );
     }
 
-    // COMPOSED / BAR / LINE
     return (
         <ComposedChart {...commonProps}>
             {ChartGrid}
@@ -404,7 +398,6 @@ const ChartGenerator: React.FC = () => {
                 if (ComponentType === Bar) {
                     styleProps.fill = s.color;
                     styleProps.radius = [4, 4, 0, 0];
-                    styleProps.barSize = undefined; // Auto
                     styleProps.maxBarSize = 60;
                 } else if (ComponentType === Line) {
                     styleProps.type = "monotone";
@@ -446,14 +439,13 @@ const ChartGenerator: React.FC = () => {
             <p className="text-gray-600 mt-1">Hỗ trợ nhập 1k, 1m, tùy chỉnh trục kép và xuất báo cáo ảnh PNG.</p>
         </div>
         
-        {/* SAVE ACTIONS */}
         <div className="flex items-center gap-2">
             {!showSaveInput ? (
                 <button 
                     onClick={() => setShowSaveInput(true)} 
                     className="flex items-center gap-2 bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 shadow-sm transition-all"
                 >
-                    <Save size={16} /> <span className="hidden sm:inline">Lưu Biểu Đồ</span>
+                    <Save size={16} /> <span className="hidden sm:inline">Lưu</span>
                 </button>
             ) : (
                 <div className="flex items-center bg-white border border-violet-200 rounded-lg p-1 animate-in fade-in shadow-sm">
@@ -481,9 +473,8 @@ const ChartGenerator: React.FC = () => {
         {/* LEFT: CONFIG */}
         <div className="lg:col-span-4 bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
            
-           {/* LIBRARY (Saved Charts) */}
            {savedCharts.length > 0 && (
-               <div className="mb-4 pb-4 border-b border-gray-100">
+               <div className="mb-4 pb-4 border-b border-gray-100 flex-shrink-0">
                    <h4 className="text-xs font-bold text-gray-500 uppercase mb-2 flex items-center gap-2">
                        <FolderOpen size={14} /> Thư viện ({savedCharts.length})
                    </h4>
@@ -503,7 +494,6 @@ const ChartGenerator: React.FC = () => {
                </div>
            )}
 
-           {/* Top Config */}
            <div className="space-y-4 mb-4 flex-shrink-0">
               <input 
                 type="text" 
@@ -526,10 +516,9 @@ const ChartGenerator: React.FC = () => {
               </div>
            </div>
 
-           {/* Series Manager */}
            <div className="flex-shrink-0 border-b border-gray-200 pb-4 mb-4">
                <div className="flex justify-between items-center mb-2">
-                   <span className="text-xs font-bold text-gray-500 uppercase">Chuỗi dữ liệu (Series)</span>
+                   <span className="text-xs font-bold text-gray-500 uppercase">Chuỗi dữ liệu</span>
                    <button onClick={addSeries} className="text-xs flex items-center gap-1 text-violet-600 hover:bg-violet-50 px-2 py-1 rounded">
                        <Plus size={12} /> Thêm
                    </button>
@@ -558,7 +547,6 @@ const ChartGenerator: React.FC = () => {
                                )}
                            </div>
                            
-                           {/* Advanced Series Config */}
                            {chartType === 'composed' && (
                                <div className="flex gap-2 text-xs">
                                    <select 
@@ -585,61 +573,63 @@ const ChartGenerator: React.FC = () => {
                </div>
            </div>
 
-           {/* Data Table */}
            <div className="flex justify-between items-center mb-2">
-               <h3 className="font-bold text-gray-700 text-sm">Dữ liệu <span className="text-[10px] font-normal text-gray-400">(Hỗ trợ nhập 1k, 5m, 2b)</span></h3>
+               <h3 className="font-bold text-gray-700 text-sm">Dữ liệu</h3>
                <button onClick={addRow} className="text-xs flex items-center gap-1 bg-gray-100 text-gray-600 px-2 py-1 rounded hover:bg-gray-200">
                    <Plus size={12} /> Dòng
                </button>
            </div>
 
-           <div className="flex-1 overflow-auto border border-gray-200 rounded-lg">
-               <table className="w-full text-sm">
-                   <thead className="bg-gray-50 sticky top-0 z-10">
-                       <tr>
-                           <th className="p-2 text-left text-xs font-semibold text-gray-500 w-24">Nhãn</th>
-                           {seriesList.map(s => (
-                               <th key={s.id} className="p-2 text-left text-xs font-semibold text-gray-500 min-w-[80px]" style={{color: s.color}}>
-                                   {s.name}
-                               </th>
-                           ))}
-                           <th className="w-16"></th>
-                       </tr>
-                   </thead>
-                   <tbody className="divide-y divide-gray-100">
-                       {data.map((row, idx) => (
-                           <tr key={row.id} className="group hover:bg-gray-50">
-                               <td className="p-1">
-                                   <input 
-                                      value={row.label} 
-                                      onChange={e => updateRowData(row.id, 'label', e.target.value)}
-                                      className="w-full p-1 bg-transparent focus:bg-white rounded border border-transparent focus:border-violet-300 outline-none font-medium"
-                                   />
-                               </td>
+           <div className="flex-1 overflow-auto border border-gray-200 rounded-lg bg-white">
+               {/* Added overflow-x-auto and min-w-full for scrollable table */}
+               <div className="overflow-x-auto w-full">
+                   <table className="w-full text-sm min-w-full">
+                       <thead className="bg-gray-50 sticky top-0 z-10">
+                           <tr>
+                               <th className="p-2 text-left text-xs font-semibold text-gray-500 w-24 sticky left-0 bg-gray-50 z-20 shadow-r">Nhãn</th>
                                {seriesList.map(s => (
-                                   <td key={s.id} className="p-1">
+                                   <th key={s.id} className="p-2 text-left text-xs font-semibold text-gray-500 min-w-[100px]" style={{color: s.color}}>
+                                       {s.name}
+                                   </th>
+                               ))}
+                               <th className="w-16"></th>
+                           </tr>
+                       </thead>
+                       <tbody className="divide-y divide-gray-100">
+                           {data.map((row, idx) => (
+                               <tr key={row.id} className="group hover:bg-gray-50">
+                                   <td className="p-1 sticky left-0 bg-white group-hover:bg-gray-50 z-10 shadow-r">
                                        <input 
-                                          type="text"
-                                          value={formatInputDisplay(row[s.id])} 
-                                          onChange={e => updateRowData(row.id, s.id, e.target.value)}
-                                          className="w-full p-1 bg-transparent focus:bg-white rounded border border-transparent focus:border-violet-300 outline-none text-right font-mono text-xs"
-                                          placeholder="0"
+                                          value={row.label} 
+                                          onChange={e => updateRowData(row.id, 'label', e.target.value)}
+                                          className="w-full p-1 bg-transparent focus:bg-white rounded border border-transparent focus:border-violet-300 outline-none font-medium"
                                        />
                                    </td>
-                               ))}
-                               <td className="p-1 flex items-center justify-center gap-1">
-                                   <div className="flex flex-col">
-                                       <button onClick={() => moveRow(idx, 'up')} disabled={idx === 0} className="text-gray-300 hover:text-gray-600 disabled:opacity-30"><ArrowUp size={10}/></button>
-                                       <button onClick={() => moveRow(idx, 'down')} disabled={idx === data.length - 1} className="text-gray-300 hover:text-gray-600 disabled:opacity-30"><ArrowDown size={10}/></button>
-                                   </div>
-                                   <button onClick={() => removeRow(row.id)} className="text-gray-300 hover:text-red-500">
-                                       <Trash2 size={14} />
-                                   </button>
-                               </td>
-                           </tr>
-                       ))}
-                   </tbody>
-               </table>
+                                   {seriesList.map(s => (
+                                       <td key={s.id} className="p-1">
+                                           <input 
+                                              type="text"
+                                              value={formatInputDisplay(row[s.id])} 
+                                              onChange={e => updateRowData(row.id, s.id, e.target.value)}
+                                              className="w-full p-1 bg-transparent focus:bg-white rounded border border-transparent focus:border-violet-300 outline-none text-right font-mono text-xs"
+                                              placeholder="0"
+                                           />
+                                       </td>
+                                   ))}
+                                   <td className="p-1 flex items-center justify-center gap-1">
+                                       <div className="flex flex-col">
+                                           <button onClick={() => moveRow(idx, 'up')} disabled={idx === 0} className="text-gray-300 hover:text-gray-600 disabled:opacity-30"><ArrowUp size={10}/></button>
+                                           <button onClick={() => moveRow(idx, 'down')} disabled={idx === data.length - 1} className="text-gray-300 hover:text-gray-600 disabled:opacity-30"><ArrowDown size={10}/></button>
+                                       </div>
+                                       <button onClick={() => removeRow(row.id)} className="text-gray-300 hover:text-red-500">
+                                           <Trash2 size={14} />
+                                       </button>
+                                   </td>
+                               </tr>
+                           ))}
+                       </tbody>
+                   </table>
+               </div>
            </div>
         </div>
 
@@ -653,37 +643,12 @@ const ChartGenerator: React.FC = () => {
                         <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded border border-gray-200">Preview</span>
                     </h3>
                     
-                    {/* Visual Controls */}
                     <div className="flex items-center gap-2 bg-gray-50 p-1 rounded-lg border border-gray-200">
-                        <button 
-                            onClick={() => setShowGrid(!showGrid)} 
-                            className={`p-1.5 rounded transition-colors ${showGrid ? 'bg-white shadow text-violet-600' : 'text-gray-400 hover:text-gray-600'}`} 
-                            title="Lưới"
-                        >
-                            <Grid3X3 size={16} />
-                        </button>
-                        <button 
-                            onClick={() => setShowValues(!showValues)} 
-                            className={`p-1.5 rounded transition-colors ${showValues ? 'bg-white shadow text-violet-600' : 'text-gray-400 hover:text-gray-600'}`} 
-                            title="Hiển thị giá trị"
-                        >
-                            <Type size={16} />
-                        </button>
-                        <button 
-                            onClick={() => setRotateLabels(!rotateLabels)} 
-                            className={`p-1.5 rounded transition-colors ${rotateLabels ? 'bg-white shadow text-violet-600' : 'text-gray-400 hover:text-gray-600'}`} 
-                            title="Xoay nhãn trục X"
-                        >
-                            <RotateCw size={16} />
-                        </button>
+                        <button onClick={() => setShowGrid(!showGrid)} className={`p-1.5 rounded transition-colors ${showGrid ? 'bg-white shadow text-violet-600' : 'text-gray-400 hover:text-gray-600'}`} title="Lưới"><Grid3X3 size={16} /></button>
+                        <button onClick={() => setShowValues(!showValues)} className={`p-1.5 rounded transition-colors ${showValues ? 'bg-white shadow text-violet-600' : 'text-gray-400 hover:text-gray-600'}`} title="Hiển thị giá trị"><Type size={16} /></button>
+                        <button onClick={() => setRotateLabels(!rotateLabels)} className={`p-1.5 rounded transition-colors ${rotateLabels ? 'bg-white shadow text-violet-600' : 'text-gray-400 hover:text-gray-600'}`} title="Xoay nhãn"><RotateCw size={16} /></button>
                         <div className="w-px h-4 bg-gray-300 mx-1"></div>
-                        <button 
-                            onClick={handleDownloadImage}
-                            className="p-1.5 rounded hover:bg-white hover:shadow hover:text-violet-600 text-gray-500 transition-colors"
-                            title="Tải ảnh PNG"
-                        >
-                            <Download size={16} />
-                        </button>
+                        <button onClick={handleDownloadImage} className="p-1.5 rounded hover:bg-white hover:shadow hover:text-violet-600 text-gray-500 transition-colors" title="Tải ảnh PNG"><Download size={16} /></button>
                     </div>
                 </div>
                 
@@ -700,7 +665,7 @@ const ChartGenerator: React.FC = () => {
                         className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-lg font-medium shadow hover:shadow-lg transition-all disabled:opacity-70 text-sm hover:-translate-y-0.5"
                     >
                         {isAnalyzing ? <Loader2 className="animate-spin w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
-                        {isAnalyzing ? 'Đang đọc số liệu...' : 'Phân tích AI (Chuyên gia)'}
+                        {isAnalyzing ? 'Đang đọc số liệu...' : 'Phân tích AI'}
                     </button>
                 </div>
             </div>
