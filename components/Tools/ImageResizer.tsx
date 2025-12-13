@@ -4,7 +4,7 @@ import {
   Move, Upload, Download, Lock, Unlock, RefreshCw, 
   Smartphone, Monitor, Layers, Image as ImageIcon, 
   Trash2, Play, Grid3X3, RotateCw, RotateCcw, 
-  ZoomIn, MousePointer2, Settings, Crosshair, Maximize, ArrowRightLeft, FileImage
+  ZoomIn, MousePointer2, Settings, Crosshair, Maximize, ArrowRightLeft, FileImage, CheckCircle
 } from 'lucide-react';
 
 interface Preset {
@@ -126,12 +126,18 @@ const ImageResizer: React.FC = () => {
       if (!wmSettings.enabled || !wmSettings.image) return;
 
       const wm = wmSettings.image;
-      const wmRatio = wm.width / wm.height;
+      // FIX: Use natural dimensions to preserve aspect ratio
+      const wmRatio = (wm.naturalWidth || wm.width) / (wm.naturalHeight || wm.height) || 1;
+      
       let wmW = canvasW * (wmSettings.scale / 100);
       let wmH = wmW / wmRatio;
 
       ctx.save();
       ctx.globalAlpha = wmSettings.opacity;
+      
+      // Ensure high quality scaling
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
 
       if (wmSettings.mode === 'single') {
           const wx = (canvasW * (wmSettings.x / 100));
@@ -208,14 +214,7 @@ const ImageResizer: React.FC = () => {
       const img = new Image();
       img.src = imgFile.preview;
       img.onload = () => {
-        setFiles(prev => {
-            // Check if this is the very first image to set canvas size
-            if (prev.length === 0 && imgFile === newImageFiles[0]) {
-                // We do this inside setState callback to ensure sync
-                // Note: We are setting external state inside a setState callback which is risky but here intended for effect
-            }
-            return prev.map(p => p.id === imgFile.id ? { ...p, originalDims: { w: img.width, h: img.height } } : p);
-        });
+        setFiles(prev => prev.map(p => p.id === imgFile.id ? { ...p, originalDims: { w: img.width, h: img.height } } : p));
         
         // Auto-set canvas size for first image
         if (files.length === 0 && imgFile === newImageFiles[0]) {
@@ -241,6 +240,13 @@ const ImageResizer: React.FC = () => {
           setWidth(activeFile.originalDims.w);
           setHeight(activeFile.originalDims.h);
           updateActiveTransform({ scale: 1, x: 0, y: 0 });
+      }
+  };
+
+  const handleReset = () => {
+      if(confirm('Bạn có chắc muốn xóa hết danh sách ảnh?')) {
+          setFiles([]);
+          setSelectedFileId(null);
       }
   };
 
@@ -351,6 +357,19 @@ const ImageResizer: React.FC = () => {
 
     setFiles(processed);
     setIsProcessing(false);
+  };
+
+  const downloadAll = () => {
+      files.forEach(f => {
+          if (f.status === 'done' && f.resultUrl) {
+              const link = document.createElement('a');
+              link.href = f.resultUrl;
+              link.download = `processed_${f.file.name}`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+          }
+      });
   };
 
   return (
@@ -467,13 +486,22 @@ const ImageResizer: React.FC = () => {
            </div>
 
            <div className="p-4 border-t border-gray-200 bg-gray-50">
-               <button 
-                    onClick={processBatch}
-                    disabled={files.length === 0 || isProcessing}
-                    className={`w-full py-3 rounded-lg font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all ${files.length===0 || isProcessing ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:-translate-y-1'}`}
-                >
-                    {isProcessing ? <RefreshCw className="animate-spin" size={18}/> : <Download size={18}/>} Xuất Ảnh
-                </button>
+               {files.some(f => f.status === 'done') ? (
+                   <button 
+                        onClick={downloadAll}
+                        className="w-full py-3 rounded-lg font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all bg-green-600 hover:bg-green-700 hover:-translate-y-1"
+                    >
+                        <Download size={18}/> Tải Tất Cả
+                    </button>
+               ) : (
+                   <button 
+                        onClick={processBatch}
+                        disabled={files.length === 0 || isProcessing}
+                        className={`w-full py-3 rounded-lg font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all ${files.length===0 || isProcessing ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:-translate-y-1'}`}
+                    >
+                        {isProcessing ? <RefreshCw className="animate-spin" size={18}/> : <Play size={18}/>} Xử Lý Ảnh
+                    </button>
+               )}
            </div>
         </div>
 
@@ -491,6 +519,20 @@ const ImageResizer: React.FC = () => {
                     <ZoomIn size={14} className="text-gray-400"/>
                     <input type="range" min="0.1" max="3" step="0.1" value={activeFile?.transform.scale || 1} onChange={e => updateActiveTransform({scale: parseFloat(e.target.value)})} className="w-20 h-1 bg-gray-300 rounded-lg accent-blue-600" />
                 </div>
+                
+                {/* Download Button for Active File */}
+                {activeFile?.status === 'done' && activeFile.resultUrl && (
+                    <>
+                        <div className="w-px h-6 bg-gray-300 mx-1 my-auto"></div>
+                        <a 
+                            href={activeFile.resultUrl}
+                            download={`processed_${activeFile.file.name}`}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-full text-xs font-bold hover:bg-green-700 shadow-sm"
+                        >
+                            <Download size={14} /> Tải Ảnh Này
+                        </a>
+                    </>
+                )}
             </div>
 
             {/* Canvas Stage */}
@@ -602,11 +644,32 @@ const ImageResizer: React.FC = () => {
                                 <div className="text-xs font-bold text-gray-700 truncate">{f.file.name}</div>
                                 <div className="text-[10px] text-gray-400">{Math.round(f.originalSize/1024)} KB</div>
                             </div>
+                            
+                            {/* Download Button in List */}
+                            {f.status === 'done' && f.resultUrl && (
+                                <a 
+                                    href={f.resultUrl} 
+                                    download={`processed_${f.file.name}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="p-1.5 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                                    title="Tải về"
+                                >
+                                    <Download size={14} />
+                                </a>
+                            )}
+
+                            {f.status === 'done' && !f.resultUrl && <div className="p-1"><CheckCircle size={14} className="text-green-500" /></div>}
+
                             <button onClick={(e) => { e.stopPropagation(); setFiles(files.filter(x => x.id !== f.id)); }} className="text-gray-300 hover:text-red-500 p-1">
                                 <Trash2 size={14}/>
                             </button>
                         </div>
                     ))}
+                    {files.length > 0 && (
+                        <button onClick={handleReset} className="ml-2 text-xs text-red-400 hover:text-red-600 whitespace-nowrap">
+                            Xóa hết
+                        </button>
+                    )}
                 </div>
             )}
         </div>
