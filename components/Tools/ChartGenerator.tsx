@@ -652,7 +652,7 @@ const ChartGenerator: React.FC = () => {
            </div>
 
            {/* Section 4: Data Table (EXPANDED TO FILL SPACE) */}
-           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col flex-1 min-h-0">
+           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col flex-1 min-h-[400px]">
                 <button 
                     onClick={() => toggleSection('data')}
                     className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors flex-shrink-0"
@@ -665,13 +665,13 @@ const ChartGenerator: React.FC = () => {
 
                 {sections.data && (
                     <div className="flex-1 flex flex-col min-h-0 border-t border-gray-200">
-                        <div className="p-2 border-b border-gray-100 flex justify-end">
+                        <div className="p-2 border-b border-gray-100 flex justify-end bg-white">
                             <button onClick={addRow} className="text-xs flex items-center gap-1 bg-gray-100 text-black px-3 py-1.5 rounded hover:bg-gray-200 font-bold">
                                 <Plus size={12} /> Thêm Dòng
                             </button>
                         </div>
                         
-                        <div className="flex-1 overflow-auto bg-white relative">
+                        <div className="flex-1 overflow-auto bg-white relative custom-scrollbar">
                             <table className="w-full text-sm min-w-full border-collapse">
                                 <thead className="bg-gray-50 sticky top-0 z-30 shadow-sm">
                                     <tr>
