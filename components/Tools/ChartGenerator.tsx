@@ -59,8 +59,8 @@ const ChartGenerator: React.FC = () => {
   };
   
   const [seriesList, setSeriesList] = useState<DataSeries[]>([
-    { id: 's1', name: 'Doanh thu', color: '#8b5cf6', type: 'bar', yAxisId: 'left' },
-    { id: 's2', name: 'Lợi nhuận (%)', color: '#f59e0b', type: 'line', yAxisId: 'right' }
+    { id: 's1', name: 'Doanh thu', color: '#1f2937', type: 'bar', yAxisId: 'left' }, // Changed to dark
+    { id: 's2', name: 'Lợi nhuận (%)', color: '#4b5563', type: 'line', yAxisId: 'right' } // Changed to gray
   ]);
 
   const [data, setData] = useState<ChartRow[]>([
@@ -154,7 +154,8 @@ const ChartGenerator: React.FC = () => {
         return;
     }
     const newId = `s${Math.random().toString(36).substr(2, 5)}`;
-    const colors = ['#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#ec4899', '#6366f1'];
+    // Darker color palette for high contrast
+    const colors = ['#111827', '#4b5563', '#374151', '#000000', '#1f2937', '#6b7280'];
     const nextColor = colors[seriesList.length % colors.length];
     
     setSeriesList([...seriesList, { 
@@ -219,26 +220,20 @@ const ChartGenerator: React.FC = () => {
         return;
     }
 
-    // 1. Tìm phần tử SVG trong container của Recharts
     const svgElement = chartRef.current.querySelector('.recharts-surface') as SVGSVGElement;
     if (!svgElement) {
         alert("Lỗi không tìm thấy biểu đồ.");
         return;
     }
 
-    // 2. Lấy kích thước thực tế của SVG đang hiển thị
     const { width, height } = svgElement.getBoundingClientRect();
-
-    // 3. Clone SVG node để không ảnh hưởng giao diện chính
     const clonedSvg = svgElement.cloneNode(true) as SVGSVGElement;
 
-    // 4. THIẾT LẬP KÍCH THƯỚC CỨNG
     clonedSvg.setAttribute('width', width.toString());
     clonedSvg.setAttribute('height', height.toString());
     clonedSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
     clonedSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
 
-    // 5. Thêm nền trắng cho SVG
     const bgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
     bgRect.setAttribute("width", "100%");
     bgRect.setAttribute("height", "100%");
@@ -250,14 +245,12 @@ const ChartGenerator: React.FC = () => {
         clonedSvg.appendChild(bgRect);
     }
 
-    // 6. Serialize SVG thành chuỗi XML
     const svgData = new XMLSerializer().serializeToString(clonedSvg);
     const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
 
-    // 7. Vẽ lên Canvas với Scale 2x cho sắc nét
     const canvas = document.createElement("canvas");
-    const scale = 2; // High resolution scale
+    const scale = 2;
     const padding = 40 * scale;
     const titleHeight = 60 * scale;
     
@@ -267,12 +260,10 @@ const ChartGenerator: React.FC = () => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Vẽ nền trắng cho toàn bộ canvas
     ctx.fillStyle = "white";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Vẽ tiêu đề
-    ctx.fillStyle = "#111827"; // Gray-900
+    ctx.fillStyle = "#000000"; // Black Title
     ctx.font = `bold ${24 * scale}px Inter, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -282,10 +273,8 @@ const ChartGenerator: React.FC = () => {
     img.crossOrigin = "anonymous";
     
     img.onload = () => {
-        // Vẽ ảnh biểu đồ vào canvas
         ctx.drawImage(img, padding, padding + titleHeight, width * scale, height * scale);
         
-        // Tải xuống
         const pngUrl = canvas.toDataURL("image/png", 1.0);
         const downloadLink = document.createElement("a");
         downloadLink.href = pngUrl;
@@ -359,19 +348,20 @@ const ChartGenerator: React.FC = () => {
             angle={rotateLabels ? -45 : 0}
             textAnchor={rotateLabels ? "end" : "middle"}
             height={rotateLabels ? 80 : 30}
-            tick={{fontSize: 12}}
+            tick={{fontSize: 12, fill: '#000'}} // Dark tick
             interval={0} 
         />
     );
     
-    const YAxisLeft = <YAxis yAxisId="left" tickFormatter={formatCompactNumber} width={45} tick={{fontSize: 12}} />;
-    const YAxisRight = <YAxis yAxisId="right" orientation="right" tickFormatter={formatCompactNumber} width={45} tick={{fontSize: 12}} />;
+    const YAxisLeft = <YAxis yAxisId="left" tickFormatter={formatCompactNumber} width={45} tick={{fontSize: 12, fill: '#000'}} />;
+    const YAxisRight = <YAxis yAxisId="right" orientation="right" tickFormatter={formatCompactNumber} width={45} tick={{fontSize: 12, fill: '#000'}} />;
     
     const ChartTooltip = (
         <Tooltip 
             formatter={(value: any, name: string) => [Number(value).toLocaleString('en-US'), name]} 
-            labelStyle={{fontWeight: 'bold', color: '#374151'}}
-            contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.15)'}}
+            labelStyle={{fontWeight: 'bold', color: '#000'}}
+            itemStyle={{ color: '#000' }}
+            contentStyle={{borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', color: '#000'}}
         />
     );
 
@@ -380,7 +370,7 @@ const ChartGenerator: React.FC = () => {
     if (chartType === 'pie') {
         const firstSeries = seriesList[0];
         const pieData = processedData.map(d => ({ name: d.label, value: Number(d[firstSeries.id]) || 0 }));
-        const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8b5cf6', '#ec4899', '#6366f1'];
+        const COLORS = ['#111827', '#374151', '#4b5563', '#6b7280', '#9ca3af', '#d1d5db'];
         return (
           <PieChart margin={commonProps.margin}>
             <Pie
@@ -399,7 +389,7 @@ const ChartGenerator: React.FC = () => {
               ))}
             </Pie>
             {ChartTooltip}
-            <Legend />
+            <Legend wrapperStyle={{ color: '#000' }}/>
           </PieChart>
         );
     }
@@ -411,7 +401,7 @@ const ChartGenerator: React.FC = () => {
             {hasLeft && YAxisLeft}
             {hasRight && YAxisRight}
             {ChartTooltip}
-            <Legend wrapperStyle={{paddingTop: '10px'}}/>
+            <Legend wrapperStyle={{paddingTop: '10px', color: '#000'}}/>
             
             {seriesList.map((s) => {
                 let ComponentType: any = Bar;
@@ -451,7 +441,7 @@ const ChartGenerator: React.FC = () => {
                                 dataKey={s.id} 
                                 position="top" 
                                 formatter={(val: number) => formatCompactNumber(val)}
-                                style={{fontSize: 10, fill: '#666'}}
+                                style={{fontSize: 10, fill: '#000', fontWeight: 'bold'}}
                             />
                         )}
                     </ComponentType>
@@ -462,37 +452,37 @@ const ChartGenerator: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto h-[calc(100vh-140px)] flex flex-col">
+    <div className="max-w-[95%] mx-auto h-[calc(100vh-140px)] flex flex-col">
       <div className="mb-4 flex items-center justify-between">
         <div>
-            <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <BarChartBig className="text-violet-600" /> Tạo Biểu Đồ Chuyên Nghiệp
+            <h2 className="text-2xl font-bold text-black flex items-center gap-2">
+            <BarChartBig className="text-black" /> Tạo Biểu Đồ Chuyên Nghiệp
             </h2>
-            <p className="text-gray-600 mt-1">Hỗ trợ nhập 1k, 1m, tùy chỉnh trục kép và xuất báo cáo ảnh PNG.</p>
+            <p className="text-black mt-1 font-medium">Hỗ trợ nhập 1k, 1m, tùy chỉnh trục kép và xuất báo cáo ảnh PNG.</p>
         </div>
         
         <div className="flex items-center gap-2">
             {!showSaveInput ? (
                 <button 
                     onClick={() => setShowSaveInput(true)} 
-                    className="flex items-center gap-2 bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 shadow-sm transition-all"
+                    className="flex items-center gap-2 bg-white border border-gray-300 text-black px-4 py-2 rounded-lg hover:bg-gray-100 shadow-sm transition-all font-semibold"
                 >
                     <Save size={16} /> <span className="hidden sm:inline">Lưu</span>
                 </button>
             ) : (
-                <div className="flex items-center bg-white border border-violet-200 rounded-lg p-1 animate-in fade-in shadow-sm">
+                <div className="flex items-center bg-white border border-gray-300 rounded-lg p-1 animate-in fade-in shadow-sm">
                     <input 
                        type="text" 
                        value={saveName}
                        onChange={e => setSaveName(e.target.value)}
                        placeholder="Đặt tên..."
-                       className="p-1.5 outline-none text-sm w-32"
+                       className="p-1.5 outline-none text-sm w-32 text-black font-medium"
                        autoFocus
                     />
-                    <button onClick={saveChart} className="p-1.5 bg-violet-600 text-white rounded hover:bg-violet-700">
+                    <button onClick={saveChart} className="p-1.5 bg-black text-white rounded hover:bg-gray-800">
                         <Check size={14} />
                     </button>
-                    <button onClick={() => setShowSaveInput(false)} className="p-1.5 text-gray-400 hover:text-red-500">
+                    <button onClick={() => setShowSaveInput(false)} className="p-1.5 text-gray-500 hover:text-red-500">
                         <X size={14} />
                     </button>
                 </div>
@@ -503,18 +493,18 @@ const ChartGenerator: React.FC = () => {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
         
         {/* LEFT: CONFIG (ACCORDION STYLE) */}
-        <div className="lg:col-span-5 flex flex-col gap-3 min-h-0">
+        <div className="lg:col-span-4 flex flex-col gap-3 min-h-0">
            
            {/* Section 1: Library */}
-           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex-shrink-0">
+           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex-shrink-0">
                 <button 
                     onClick={() => toggleSection('library')}
                     className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors"
                 >
-                    <span className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                    <span className="text-sm font-bold text-black flex items-center gap-2">
                         <FolderOpen size={16} /> Thư viện đã lưu ({savedCharts.length})
                     </span>
-                    {sections.library ? <ChevronDown size={16} className="text-gray-500"/> : <ChevronRight size={16} className="text-gray-500"/>}
+                    {sections.library ? <ChevronDown size={16} className="text-black"/> : <ChevronRight size={16} className="text-black"/>}
                 </button>
                 
                 {sections.library && (
@@ -522,34 +512,34 @@ const ChartGenerator: React.FC = () => {
                         {savedCharts.length > 0 ? (
                             <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
                                 {savedCharts.map(c => (
-                                    <div key={c.id} onClick={() => loadChart(c)} className="flex-shrink-0 bg-gray-50 hover:bg-violet-50 border border-gray-200 hover:border-violet-200 rounded-lg p-2 pr-1 cursor-pointer flex items-center gap-2 group min-w-[120px]">
+                                    <div key={c.id} onClick={() => loadChart(c)} className="flex-shrink-0 bg-gray-50 hover:bg-gray-100 border border-gray-300 hover:border-black rounded-lg p-2 pr-1 cursor-pointer flex items-center gap-2 group min-w-[120px]">
                                         <div className="flex-1 min-w-0">
-                                            <div className="text-sm font-medium text-gray-700 truncate">{c.name}</div>
-                                            <div className="text-[10px] text-gray-400">{new Date(c.createdAt).toLocaleDateString()}</div>
+                                            <div className="text-sm font-bold text-black truncate">{c.name}</div>
+                                            <div className="text-[10px] text-gray-600 font-medium">{new Date(c.createdAt).toLocaleDateString()}</div>
                                         </div>
-                                        <button onClick={(e) => deleteChart(c.id, e)} className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={(e) => deleteChart(c.id, e)} className="p-1 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <Trash2 size={12} />
                                         </button>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-xs text-gray-400 italic text-center py-2">Chưa có biểu đồ nào.</p>
+                            <p className="text-xs text-gray-500 italic text-center py-2">Chưa có biểu đồ nào.</p>
                         )}
                     </div>
                 )}
            </div>
 
            {/* Section 2: General Config */}
-           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex-shrink-0">
+           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex-shrink-0">
                 <button 
                     onClick={() => toggleSection('config')}
                     className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors"
                 >
-                    <span className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                    <span className="text-sm font-bold text-black flex items-center gap-2">
                         <Settings size={16} /> Cấu hình chung
                     </span>
-                    {sections.config ? <ChevronDown size={16} className="text-gray-500"/> : <ChevronRight size={16} className="text-gray-500"/>}
+                    {sections.config ? <ChevronDown size={16} className="text-black"/> : <ChevronRight size={16} className="text-black"/>}
                 </button>
 
                 {sections.config && (
@@ -558,7 +548,7 @@ const ChartGenerator: React.FC = () => {
                             type="text" 
                             value={title} 
                             onChange={e => setTitle(e.target.value)} 
-                            className="w-full p-2 border rounded font-bold text-gray-700 focus:ring-2 focus:ring-violet-500 outline-none"
+                            className="w-full p-2 border border-gray-300 rounded font-bold text-black focus:ring-2 focus:ring-black focus:outline-none placeholder-gray-500"
                             placeholder="Tiêu đề biểu đồ..."
                         />
                         
@@ -567,7 +557,7 @@ const ChartGenerator: React.FC = () => {
                                 <button
                                     key={t}
                                     onClick={() => setChartType(t as any)}
-                                    className={`flex-1 py-1.5 rounded text-xs font-medium uppercase transition-all ${chartType === t ? 'bg-white text-violet-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                    className={`flex-1 py-1.5 rounded text-xs font-bold uppercase transition-all ${chartType === t ? 'bg-white text-black shadow-sm border border-gray-200' : 'text-gray-500 hover:text-black'}`}
                                 >
                                     {t === 'composed' ? 'Hỗn hợp' : t}
                                 </button>
@@ -575,13 +565,13 @@ const ChartGenerator: React.FC = () => {
                         </div>
 
                         <div className="grid grid-cols-3 gap-2">
-                            <button onClick={() => setShowGrid(!showGrid)} className={`flex items-center justify-center gap-1 py-1.5 rounded text-xs font-medium border transition-colors ${showGrid ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-gray-500 border-gray-200'}`}>
+                            <button onClick={() => setShowGrid(!showGrid)} className={`flex items-center justify-center gap-1 py-1.5 rounded text-xs font-bold border transition-colors ${showGrid ? 'bg-gray-100 text-black border-gray-300' : 'bg-white text-gray-500 border-gray-200'}`}>
                                 <Grid3X3 size={14} /> Lưới
                             </button>
-                            <button onClick={() => setShowValues(!showValues)} className={`flex items-center justify-center gap-1 py-1.5 rounded text-xs font-medium border transition-colors ${showValues ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-gray-500 border-gray-200'}`}>
+                            <button onClick={() => setShowValues(!showValues)} className={`flex items-center justify-center gap-1 py-1.5 rounded text-xs font-bold border transition-colors ${showValues ? 'bg-gray-100 text-black border-gray-300' : 'bg-white text-gray-500 border-gray-200'}`}>
                                 <Type size={14} /> Giá trị
                             </button>
-                            <button onClick={() => setRotateLabels(!rotateLabels)} className={`flex items-center justify-center gap-1 py-1.5 rounded text-xs font-medium border transition-colors ${rotateLabels ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-gray-500 border-gray-200'}`}>
+                            <button onClick={() => setRotateLabels(!rotateLabels)} className={`flex items-center justify-center gap-1 py-1.5 rounded text-xs font-bold border transition-colors ${rotateLabels ? 'bg-gray-100 text-black border-gray-300' : 'bg-white text-gray-500 border-gray-200'}`}>
                                 <RotateCw size={14} /> Xoay nhãn
                             </button>
                         </div>
@@ -590,22 +580,22 @@ const ChartGenerator: React.FC = () => {
            </div>
 
            {/* Section 3: Series */}
-           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex-shrink-0">
+           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex-shrink-0">
                 <button 
                     onClick={() => toggleSection('series')}
                     className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors"
                 >
-                    <span className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                    <span className="text-sm font-bold text-black flex items-center gap-2">
                         <Layers size={16} /> Chuỗi dữ liệu
                     </span>
-                    {sections.series ? <ChevronDown size={16} className="text-gray-500"/> : <ChevronRight size={16} className="text-gray-500"/>}
+                    {sections.series ? <ChevronDown size={16} className="text-black"/> : <ChevronRight size={16} className="text-black"/>}
                 </button>
 
                 {sections.series && (
                     <div className="p-4 border-t border-gray-200">
                         <div className="flex justify-between items-center mb-3">
-                            <span className="text-xs text-gray-500 uppercase font-semibold">Danh sách</span>
-                            <button onClick={addSeries} className="text-xs flex items-center gap-1 text-violet-600 hover:bg-violet-50 px-2 py-1 rounded">
+                            <span className="text-xs text-black font-bold uppercase">Danh sách</span>
+                            <button onClick={addSeries} className="text-xs flex items-center gap-1 text-black bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded font-bold">
                                 <Plus size={12} /> Thêm
                             </button>
                         </div>
@@ -623,11 +613,11 @@ const ChartGenerator: React.FC = () => {
                                         <input 
                                             value={s.name} 
                                             onChange={e => updateSeries(s.id, 'name', e.target.value)} 
-                                            className="flex-1 min-w-0 bg-transparent text-sm focus:outline-none font-medium"
+                                            className="flex-1 min-w-0 bg-transparent text-sm focus:outline-none font-bold text-black"
                                             placeholder="Tên..."
                                         />
                                         {seriesList.length > 1 && (
-                                            <button onClick={() => removeSeries(s.id)} className="text-gray-400 hover:text-red-500">
+                                            <button onClick={() => removeSeries(s.id)} className="text-gray-400 hover:text-red-600">
                                                 <Trash2 size={14} />
                                             </button>
                                         )}
@@ -638,7 +628,7 @@ const ChartGenerator: React.FC = () => {
                                             <select 
                                                 value={s.type} 
                                                 onChange={e => updateSeries(s.id, 'type', e.target.value)}
-                                                className="bg-white border rounded px-1 py-0.5 outline-none cursor-pointer"
+                                                className="bg-white border border-gray-300 rounded px-1 py-0.5 outline-none cursor-pointer text-black font-medium"
                                             >
                                                 <option value="bar">Cột</option>
                                                 <option value="line">Đường</option>
@@ -647,7 +637,7 @@ const ChartGenerator: React.FC = () => {
                                             <select 
                                                 value={s.yAxisId} 
                                                 onChange={e => updateSeries(s.id, 'yAxisId', e.target.value)}
-                                                className={`border rounded px-1 py-0.5 outline-none cursor-pointer ${s.yAxisId === 'right' ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-white'}`}
+                                                className={`border rounded px-1 py-0.5 outline-none cursor-pointer font-medium ${s.yAxisId === 'right' ? 'bg-gray-200 text-black border-gray-400' : 'bg-white border-gray-300 text-black'}`}
                                             >
                                                 <option value="left">Trục Trái</option>
                                                 <option value="right">Trục Phải</option>
@@ -662,21 +652,21 @@ const ChartGenerator: React.FC = () => {
            </div>
 
            {/* Section 4: Data Table (EXPANDED TO FILL SPACE) */}
-           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col flex-1 min-h-0">
+           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col flex-1 min-h-0">
                 <button 
                     onClick={() => toggleSection('data')}
                     className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors flex-shrink-0"
                 >
-                    <span className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                    <span className="text-sm font-bold text-black flex items-center gap-2">
                         <LayoutTemplate size={16} /> Bảng dữ liệu chi tiết
                     </span>
-                    {sections.data ? <ChevronDown size={16} className="text-gray-500"/> : <ChevronRight size={16} className="text-gray-500"/>}
+                    {sections.data ? <ChevronDown size={16} className="text-black"/> : <ChevronRight size={16} className="text-black"/>}
                 </button>
 
                 {sections.data && (
                     <div className="flex-1 flex flex-col min-h-0 border-t border-gray-200">
                         <div className="p-2 border-b border-gray-100 flex justify-end">
-                            <button onClick={addRow} className="text-xs flex items-center gap-1 bg-gray-100 text-gray-600 px-3 py-1.5 rounded hover:bg-gray-200 font-medium">
+                            <button onClick={addRow} className="text-xs flex items-center gap-1 bg-gray-100 text-black px-3 py-1.5 rounded hover:bg-gray-200 font-bold">
                                 <Plus size={12} /> Thêm Dòng
                             </button>
                         </div>
@@ -685,11 +675,11 @@ const ChartGenerator: React.FC = () => {
                             <table className="w-full text-sm min-w-full border-collapse">
                                 <thead className="bg-gray-50 sticky top-0 z-30 shadow-sm">
                                     <tr>
-                                        <th className="p-2 text-left text-xs font-semibold text-gray-500 sticky left-0 z-40 bg-gray-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-b border-r border-gray-200 min-w-[120px]">
+                                        <th className="p-3 text-left text-xs font-bold text-black sticky left-0 z-40 bg-gray-50 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-b border-r border-gray-200 min-w-[140px]">
                                             Nhãn
                                         </th>
                                         {seriesList.map(s => (
-                                            <th key={s.id} className="p-2 text-left text-xs font-semibold text-gray-500 min-w-[100px] border-b border-gray-200" style={{color: s.color}}>
+                                            <th key={s.id} className="p-3 text-left text-xs font-bold text-black min-w-[120px] border-b border-gray-200" style={{color: s.color}}>
                                                 {s.name}
                                             </th>
                                         ))}
@@ -701,13 +691,13 @@ const ChartGenerator: React.FC = () => {
                                         <tr key={row.id} className="group hover:bg-gray-50">
                                             <td className="p-1 sticky left-0 bg-white group-hover:bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-gray-100">
                                                 <div className="grid grid-cols-1">
-                                                    <span className="invisible row-start-1 col-start-1 p-2 font-medium text-sm whitespace-pre px-3">
+                                                    <span className="invisible row-start-1 col-start-1 p-2 font-bold text-sm whitespace-pre px-3">
                                                         {row.label || 'Placeholder'}
                                                     </span>
                                                     <input 
                                                         value={row.label} 
                                                         onChange={e => updateRowData(row.id, 'label', e.target.value)}
-                                                        className="row-start-1 col-start-1 w-full p-2 bg-transparent focus:bg-white rounded border border-transparent focus:border-violet-300 outline-none font-medium text-sm px-3"
+                                                        className="row-start-1 col-start-1 w-full p-2 bg-transparent focus:bg-white rounded border border-transparent focus:border-black outline-none font-bold text-sm px-3 text-black"
                                                         placeholder="Nhập tên..."
                                                     />
                                                 </div>
@@ -718,17 +708,17 @@ const ChartGenerator: React.FC = () => {
                                                         type="text"
                                                         value={formatInputDisplay(row[s.id])} 
                                                         onChange={e => updateRowData(row.id, s.id, e.target.value)}
-                                                        className="w-full p-2 bg-transparent focus:bg-white rounded border border-transparent focus:border-violet-300 outline-none text-right font-mono text-xs"
+                                                        className="w-full p-2 bg-transparent focus:bg-white rounded border border-transparent focus:border-black outline-none text-right font-mono text-sm text-black font-medium"
                                                         placeholder="0"
                                                     />
                                                 </td>
                                             ))}
                                             <td className="p-1 flex items-center justify-center gap-1">
                                                 <div className="flex flex-col">
-                                                    <button onClick={() => moveRow(idx, 'up')} disabled={idx === 0} className="text-gray-300 hover:text-gray-600 disabled:opacity-30"><ArrowUp size={10}/></button>
-                                                    <button onClick={() => moveRow(idx, 'down')} disabled={idx === data.length - 1} className="text-gray-300 hover:text-gray-600 disabled:opacity-30"><ArrowDown size={10}/></button>
+                                                    <button onClick={() => moveRow(idx, 'up')} disabled={idx === 0} className="text-gray-400 hover:text-black disabled:opacity-30"><ArrowUp size={10}/></button>
+                                                    <button onClick={() => moveRow(idx, 'down')} disabled={idx === data.length - 1} className="text-gray-400 hover:text-black disabled:opacity-30"><ArrowDown size={10}/></button>
                                                 </div>
-                                                <button onClick={() => removeRow(row.id)} className="text-gray-300 hover:text-red-500">
+                                                <button onClick={() => removeRow(row.id)} className="text-gray-400 hover:text-red-600">
                                                     <Trash2 size={14} />
                                                 </button>
                                             </td>
@@ -744,17 +734,17 @@ const ChartGenerator: React.FC = () => {
         </div>
 
         {/* RIGHT: PREVIEW & AI */}
-        <div className="lg:col-span-7 flex flex-col gap-6 h-full overflow-y-auto">
+        <div className="lg:col-span-8 flex flex-col gap-6 h-full overflow-y-auto">
             {/* Chart Preview */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col p-6 min-h-[500px]">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col p-6 min-h-[600px]">
                 {/* CLEAN HEADER: Only Title */}
                 <div className="mb-6 text-center">
-                    <h3 className="font-bold text-gray-800 text-xl">
+                    <h3 className="font-extrabold text-black text-2xl">
                         {title}
                     </h3>
                 </div>
                 
-                <div className="flex-1 w-full min-h-[400px]" ref={chartRef}>
+                <div className="flex-1 w-full min-h-[500px]" ref={chartRef}>
                     <ResponsiveContainer width="100%" height="100%">
                         {renderChart()}
                     </ResponsiveContainer>
@@ -764,14 +754,14 @@ const ChartGenerator: React.FC = () => {
                 <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-gray-100">
                     <button 
                         onClick={handleDownloadImage}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium shadow-sm hover:bg-gray-50 hover:text-violet-600 transition-all text-sm hover:-translate-y-0.5"
+                        className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 text-black rounded-lg font-bold shadow-sm hover:bg-gray-50 hover:text-black transition-all text-sm hover:-translate-y-0.5"
                     >
                         <ImageIcon className="w-4 h-4" /> Lưu ảnh (PNG)
                     </button>
                     <button 
                         onClick={handleAnalyze}
                         disabled={isAnalyzing}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-lg font-medium shadow hover:shadow-lg transition-all disabled:opacity-70 text-sm hover:-translate-y-0.5"
+                        className="flex items-center gap-2 px-5 py-2.5 bg-black text-white rounded-lg font-bold shadow hover:shadow-lg transition-all disabled:opacity-70 text-sm hover:-translate-y-0.5 hover:bg-gray-800"
                     >
                         {isAnalyzing ? <Loader2 className="animate-spin w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
                         {isAnalyzing ? 'Đang đọc số liệu...' : 'Phân tích AI'}
@@ -781,20 +771,20 @@ const ChartGenerator: React.FC = () => {
 
             {/* AI Analysis Result */}
             {analysisResult && (
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-violet-100 animate-in slide-in-from-bottom-4 mb-10">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 animate-in slide-in-from-bottom-4 mb-10">
                     <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-bold text-violet-800 flex items-center gap-2">
+                        <h3 className="font-bold text-black flex items-center gap-2">
                             <Sparkles size={18} /> Nhận xét từ AI (Marketing Expert)
                         </h3>
                         <button 
                             onClick={handleCopyAnalysis} 
-                            className="flex items-center gap-1 text-xs bg-violet-50 text-violet-600 px-3 py-1.5 rounded hover:bg-violet-100 border border-violet-100"
+                            className="flex items-center gap-1 text-xs bg-gray-100 text-black px-3 py-1.5 rounded hover:bg-gray-200 border border-gray-300 font-bold"
                         >
                             {copiedAnalysis ? <Check size={14} /> : <Copy size={14} />} 
                             {copiedAnalysis ? 'Đã sao chép' : 'Sao chép'}
                         </button>
                     </div>
-                    <div className="prose prose-violet max-w-none text-sm text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-lg border border-gray-100">
+                    <div className="prose prose-gray max-w-none text-sm text-black leading-relaxed bg-gray-50 p-4 rounded-lg border border-gray-200 font-medium">
                         <div className="whitespace-pre-wrap">{analysisResult}</div>
                     </div>
                 </div>

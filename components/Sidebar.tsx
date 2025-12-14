@@ -7,17 +7,26 @@ import {
   Image as ImageIcon, BookOpen, Facebook, Eraser, Move, Palette, Aperture, List,
   ClipboardCheck, Megaphone, Target, Calculator, Layout, PieChart, Presentation,
   Pipette, Link, BarChart3, TrendingUp, DollarSign, Activity, FileType, BarChartBig,
-  Briefcase, PenTool, Rocket, LineChart, Wrench
+  Briefcase, PenTool, Rocket, LineChart, Wrench, Type, PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
 
 interface SidebarProps {
   activeTool: ToolType;
   onSelect: (tool: ToolType) => void;
-  isOpen: boolean;
+  isOpen: boolean; // Mobile open state
+  isCollapsed?: boolean; // Desktop collapsed state
+  toggleCollapse?: () => void;
   onOpenSettings: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenSettings }) => {
+const Sidebar: React.FC<SidebarProps> = ({ 
+  activeTool, 
+  onSelect, 
+  isOpen, 
+  isCollapsed = false,
+  toggleCollapse,
+  onOpenSettings 
+}) => {
   // Mặc định mở nhóm Chiến lược & Sáng tạo để user dễ tiếp cận
   const [expandedGroups, setExpandedGroups] = useState<string[]>(['Chiến Lược & Kế Hoạch', 'Sáng Tạo & Content']);
 
@@ -65,6 +74,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenS
     {
       title: 'Công Cụ Tiện Ích',
       items: [
+        { id: ToolType.FANCY_TEXT, label: 'Tạo Chữ Kiểu', icon: Type, description: 'YayText Generator' },
         { id: ToolType.QR_GEN, label: 'Tạo QR Code', icon: QrCode, description: 'Tạo mã QR' },
         { id: ToolType.URL_SHORTENER, label: 'Rút Gọn Link', icon: Link, description: 'Short link' },
         { id: ToolType.IMG_COMPRESS, label: 'Nén Ảnh', icon: ImageIcon, description: 'Giảm dung lượng' },
@@ -80,6 +90,16 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenS
   ];
 
   const toggleGroup = (title: string) => {
+    // If sidebar is collapsed, expanding a group should also expand the sidebar for better UX
+    if (isCollapsed && toggleCollapse) {
+        toggleCollapse();
+        // Ensure the group we clicked is added to expanded list if not already
+        if (!expandedGroups.includes(title)) {
+            setExpandedGroups(prev => [...prev, title]);
+        }
+        return;
+    }
+
     setExpandedGroups(prev => 
       prev.includes(title) ? prev.filter(t => t !== title) : [...prev, title]
     );
@@ -95,34 +115,52 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenS
   };
 
   return (
-    <div className={`fixed inset-y-0 left-0 z-50 w-72 bg-[#0f172a] text-slate-300 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 flex flex-col border-r border-slate-800 shadow-2xl`}>
+    <div className={`fixed inset-y-0 left-0 z-50 bg-[#0f172a] text-slate-300 transform transition-all duration-300 ease-in-out border-r border-slate-800 shadow-2xl flex flex-col
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'} 
+        md:relative md:translate-x-0 
+        ${isCollapsed ? 'w-20' : 'w-72'}
+    `}>
       {/* Brand Header */}
-      <div className="p-6 border-b border-slate-800 bg-[#0f172a]">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+      <div className={`p-4 border-b border-slate-800 bg-[#0f172a] flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+        <div className={`flex items-center gap-3 overflow-hidden ${isCollapsed ? 'justify-center' : ''}`}>
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 flex-shrink-0">
             <Sparkles size={18} fill="currentColor" />
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-white tracking-tight leading-none">
-              MarketingOS
-            </h1>
-            <p className="text-[10px] text-slate-500 font-medium mt-1 uppercase tracking-wider">All-in-one Toolkit</p>
-          </div>
+          {!isCollapsed && (
+            <div className="whitespace-nowrap transition-opacity duration-200">
+                <h1 className="text-lg font-bold text-white tracking-tight leading-none">
+                MarketingOS
+                </h1>
+                <p className="text-[10px] text-slate-500 font-medium mt-1 uppercase tracking-wider">All-in-one Toolkit</p>
+            </div>
+          )}
         </div>
+        
+        {/* Desktop Toggle Button */}
+        <button 
+            onClick={toggleCollapse}
+            className={`hidden md:flex p-1.5 rounded-md hover:bg-slate-800 text-slate-500 hover:text-white transition-colors ${isCollapsed ? 'absolute -right-3 top-12 bg-slate-700 border border-slate-600 shadow-md' : ''}`}
+            title={isCollapsed ? "Mở rộng" : "Thu gọn"}
+        >
+            {isCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={18} />}
+        </button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 custom-scrollbar">
+      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 custom-scrollbar overflow-x-hidden">
         <button
           onClick={() => onSelect(ToolType.DASHBOARD)}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 mb-6 group ${
-            activeTool === ToolType.DASHBOARD
+          className={`w-full flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 mb-6 group whitespace-nowrap
+            ${activeTool === ToolType.DASHBOARD
               ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/20' 
               : 'hover:bg-slate-800 hover:text-white'
-          }`}
+            }
+            ${isCollapsed ? 'justify-center' : 'gap-3'}
+          `}
+          title={isCollapsed ? "Dashboard" : ""}
         >
-          <LayoutDashboard className={`w-5 h-5 ${activeTool === ToolType.DASHBOARD ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
-          <span className="font-semibold text-sm">Dashboard</span>
+          <LayoutDashboard className={`flex-shrink-0 ${activeTool === ToolType.DASHBOARD ? 'text-white' : 'text-slate-400 group-hover:text-white'} ${isCollapsed ? 'w-6 h-6' : 'w-5 h-5'}`} />
+          {!isCollapsed && <span className="font-semibold text-sm">Dashboard</span>}
         </button>
 
         {navGroups.map((group) => {
@@ -133,13 +171,16 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenS
             <div key={group.title} className="mb-4">
               <button
                 onClick={() => toggleGroup(group.title)}
-                className="w-full flex items-center justify-between px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider hover:text-slate-300 transition-colors mb-1"
+                className={`w-full flex items-center py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider hover:text-slate-300 transition-colors mb-1 whitespace-nowrap
+                    ${isCollapsed ? 'justify-center px-0' : 'justify-between px-3'}
+                `}
+                title={isCollapsed ? group.title : ""}
               >
-                <div className="flex items-center gap-2">
-                   <GroupIcon size={14} />
-                   {group.title}
+                <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-2'}`}>
+                   <GroupIcon size={isCollapsed ? 18 : 14} className={isCollapsed ? "text-slate-400" : ""} />
+                   {!isCollapsed && <span>{group.title}</span>}
                 </div>
-                {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                {!isCollapsed && (isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />)}
               </button>
               
               <div className={`space-y-0.5 overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
@@ -150,15 +191,18 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenS
                     <button
                       key={item.id}
                       onClick={() => onSelect(item.id)}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200 relative group ${
-                        isActive 
+                      className={`w-full flex items-center px-3 py-2 rounded-md transition-all duration-200 relative group whitespace-nowrap
+                        ${isActive 
                           ? 'bg-slate-800 text-white font-medium' 
                           : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-                      }`}
+                        }
+                        ${isCollapsed ? 'justify-center' : 'gap-3'}
+                      `}
+                      title={isCollapsed ? item.label : ""}
                     >
                       {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-indigo-500 rounded-r-full"></div>}
-                      <Icon className={`w-4 h-4 transition-colors ${isActive ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                      <span className="text-sm truncate">{item.label}</span>
+                      <Icon className={`transition-colors flex-shrink-0 ${isActive ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'} ${isCollapsed ? 'w-5 h-5' : 'w-4 h-4'}`} />
+                      {!isCollapsed && <span className="text-sm truncate">{item.label}</span>}
                     </button>
                   );
                 })}
@@ -169,19 +213,26 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTool, onSelect, isOpen, onOpenS
       </nav>
 
       {/* Footer Settings */}
-      <div className="p-4 border-t border-slate-800 bg-[#0f172a]">
+      <div className={`p-4 border-t border-slate-800 bg-[#0f172a] ${isCollapsed ? 'flex justify-center' : ''}`}>
         <button 
           onClick={onOpenSettings}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all border border-slate-700/50 hover:border-slate-600 group"
+          className={`flex items-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all border border-slate-700/50 hover:border-slate-600 group whitespace-nowrap
+            ${isCollapsed ? 'justify-center p-2 w-10 h-10' : 'w-full px-3 py-2.5 gap-3'}
+          `}
+          title="API Settings"
         >
-          <div className="w-8 h-8 rounded-md bg-slate-800 group-hover:bg-slate-700 flex items-center justify-center text-yellow-500 transition-colors">
-             <Key className="w-4 h-4" />
+          <div className={`rounded-md bg-slate-800 group-hover:bg-slate-700 flex items-center justify-center text-yellow-500 transition-colors flex-shrink-0 ${isCollapsed ? 'w-full h-full bg-transparent' : 'w-8 h-8'}`}>
+             <Key className={`${isCollapsed ? 'w-5 h-5' : 'w-4 h-4'}`} />
           </div>
-          <div className="text-left flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">API Settings</p>
-            <p className="text-[10px] text-slate-500 truncate">Gemini, OpenAI</p>
-          </div>
-          <Settings className="w-4 h-4 text-slate-600 group-hover:text-slate-400" />
+          {!isCollapsed && (
+            <>
+                <div className="text-left flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">API Settings</p>
+                    <p className="text-[10px] text-slate-500 truncate">Gemini, OpenAI</p>
+                </div>
+                <Settings className="w-4 h-4 text-slate-600 group-hover:text-slate-400" />
+            </>
+          )}
         </button>
       </div>
     </div>
