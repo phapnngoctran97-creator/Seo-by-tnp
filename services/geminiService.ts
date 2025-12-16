@@ -2,13 +2,12 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 const getAiClient = () => {
-  // STRICT FIX: The API key must be obtained exclusively from the environment variable.
-  // We remove localStorage logic to prevent conflicts and invalid key errors.
-  const apiKey = process.env.API_KEY;
+  // Ưu tiên lấy từ biến môi trường (nếu deploy), nếu không thì lấy từ localStorage (nếu chạy local/demo)
+  const apiKey = process.env.API_KEY || localStorage.getItem('gemini_api_key');
 
   if (!apiKey) {
-    console.error("API Key is missing from process.env.API_KEY");
-    throw new Error("Hệ thống chưa được cấu hình API Key. Vui lòng kiểm tra biến môi trường.");
+    console.error("API Key is missing");
+    throw new Error("Hệ thống chưa được cấu hình API Key. Vui lòng nhập Key trong cài đặt.");
   }
   
   return new GoogleGenAI({ apiKey });

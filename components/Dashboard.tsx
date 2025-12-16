@@ -8,11 +8,12 @@ import {
   Clock, Timer, Users, Globe, Activity, ClipboardCheck,
   Megaphone, Target, Calculator, Layout, PieChart, Presentation, Pipette,
   BarChart3, Link, TrendingUp, DollarSign, History, Facebook, FileType, BarChartBig,
-  Briefcase, Rocket, PenTool, Wrench, PlayCircle, Star, LineChart
+  Briefcase, Rocket, PenTool, Wrench, PlayCircle, Star, LineChart, AlertTriangle, Key
 } from 'lucide-react';
 
 interface DashboardProps {
   onNavigate: (tool: ToolType) => void;
+  onOpenKeyModal: () => void;
 }
 
 interface ToolItem {
@@ -33,13 +34,16 @@ interface Category {
   tools: ToolItem[];
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
+const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onOpenKeyModal }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [recentTools, setRecentTools] = useState<ToolItem[]>([]);
   const [greeting, setGreeting] = useState('');
 
   // --- Real-time Stats ---
   const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // Check API Key Status (Env or LocalStorage)
+  const hasApiKey = !!process.env.API_KEY || (typeof window !== 'undefined' && !!localStorage.getItem('gemini_api_key'));
   
   // --- DEFINING TOOLS DATA (Grouped by Marketing Function) ---
   
@@ -75,6 +79,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   ];
 
   const utilityTools: ToolItem[] = [
+    { id: ToolType.FANCY_TEXT, title: 'Tạo Chữ Kiểu', desc: 'YayText Generator.', icon: Type, color: 'text-fuchsia-600', bg: 'bg-fuchsia-50' },
     { id: ToolType.QR_GEN, title: 'Tạo QR Code', desc: 'Link, WiFi, Contact.', icon: QrCode, color: 'text-slate-600', bg: 'bg-slate-100' },
     { id: ToolType.URL_SHORTENER, title: 'Rút Gọn Link', desc: 'TinyURL service.', icon: Link, color: 'text-slate-600', bg: 'bg-slate-100' },
     { id: ToolType.IMG_COMPRESS, title: 'Nén Ảnh', desc: 'Giảm dung lượng.', icon: ImageIcon, color: 'text-slate-600', bg: 'bg-slate-100' },
@@ -133,10 +138,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
     <div className="max-w-7xl mx-auto pb-10 px-4 md:px-8">
       
       {/* HEADER SECTION */}
-      <div className="py-8 flex flex-col md:flex-row justify-between items-end gap-6 border-b border-gray-200 mb-8">
+      <div className="py-8 flex flex-col md:flex-row justify-between items-end gap-6 mb-4">
         <div>
            <div className="flex items-center gap-2 text-gray-500 text-sm font-medium mb-1">
-              <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide">Online</span>
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${hasApiKey ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                  {hasApiKey ? 'AI Online' : 'Offline Mode'}
+              </span>
               <span>{currentTime.toLocaleDateString('vi-VN', {weekday: 'long', day: 'numeric', month: 'long'})}</span>
            </div>
            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
@@ -167,6 +174,29 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             )}
         </div>
       </div>
+
+      {/* MISSING KEY BANNER */}
+      {!hasApiKey && (
+          <div className="mb-8 bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between animate-in slide-in-from-top-4 shadow-sm gap-4">
+              <div className="flex items-center gap-4">
+                  <div className="bg-amber-100 p-2.5 rounded-lg text-amber-600 shrink-0">
+                      <AlertTriangle size={24} />
+                  </div>
+                  <div>
+                      <h3 className="font-bold text-amber-800 text-sm md:text-base">Chưa cấu hình API Key</h3>
+                      <p className="text-sm text-amber-700 mt-0.5">
+                          Các tính năng AI (Viết bài, Tạo slide, SEO...) đang bị ẩn. 
+                      </p>
+                  </div>
+              </div>
+              <button 
+                onClick={onOpenKeyModal}
+                className="whitespace-nowrap px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-colors"
+              >
+                <Key size={16} /> Nhập Key Ngay
+              </button>
+          </div>
+      )}
 
       {/* SEARCH RESULTS MODE */}
       {searchQuery ? (

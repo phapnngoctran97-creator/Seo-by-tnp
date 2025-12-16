@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavGroup, ToolType } from '../types';
 import { 
   LayoutDashboard, Sparkles, Search, Zap, Network, QrCode, 
@@ -8,7 +8,7 @@ import {
   ClipboardCheck, Megaphone, Calculator, Layout, PieChart, Presentation,
   Pipette, Link, TrendingUp, DollarSign, Activity, FileType, BarChartBig,
   Briefcase, PenTool, Rocket, LineChart, Wrench, Type, PanelLeftClose, PanelLeftOpen,
-  Wifi, WifiOff
+  Wifi, WifiOff, Settings
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -17,6 +17,7 @@ interface SidebarProps {
   isOpen: boolean; // Mobile open state
   isCollapsed?: boolean; // Desktop collapsed state
   toggleCollapse?: () => void;
+  onOpenKeyModal: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -24,13 +25,25 @@ const Sidebar: React.FC<SidebarProps> = ({
   onSelect, 
   isOpen, 
   isCollapsed = false,
-  toggleCollapse
+  toggleCollapse,
+  onOpenKeyModal
 }) => {
   // Mặc định mở nhóm Chiến lược & Sáng tạo để user dễ tiếp cận
   const [expandedGroups, setExpandedGroups] = useState<string[]>(['Chiến Lược & Kế Hoạch', 'Sáng Tạo & Content']);
+  
+  // Check API Key (Env OR LocalStorage)
+  const [hasApiKey, setHasApiKey] = useState(false);
 
-  // Kiểm tra API Key từ biến môi trường
-  const hasApiKey = !!process.env.API_KEY;
+  useEffect(() => {
+    const checkKey = () => {
+       const key = process.env.API_KEY || localStorage.getItem('gemini_api_key');
+       setHasApiKey(!!key);
+    };
+    checkKey();
+    // Optional: Listen to storage event if multiple tabs
+    window.addEventListener('storage', checkKey);
+    return () => window.removeEventListener('storage', checkKey);
+  }, []);
 
   // Danh sách các công cụ bắt buộc phải có API Key mới chạy được
   const aiOnlyTools = [
@@ -111,10 +124,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   })).filter(group => group.items.length > 0);
 
   const toggleGroup = (title: string) => {
-    // If sidebar is collapsed, expanding a group should also expand the sidebar for better UX
     if (isCollapsed && toggleCollapse) {
         toggleCollapse();
-        // Ensure the group we clicked is added to expanded list if not already
         if (!expandedGroups.includes(title)) {
             setExpandedGroups(prev => [...prev, title]);
         }
@@ -126,7 +137,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     );
   };
 
-  // Helper to map icons to group titles for the header
   const getGroupIcon = (title: string) => {
     if (title.includes('Chiến Lược')) return Briefcase;
     if (title.includes('Sáng Tạo')) return PenTool;
@@ -235,17 +245,21 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Footer Status */}
       <div className={`p-4 border-t border-slate-800 bg-[#0f172a] transition-all ${isCollapsed ? 'items-center justify-center' : ''}`}>
-          <div className={`flex items-center gap-2 text-xs font-medium ${isCollapsed ? 'justify-center' : ''} ${hasApiKey ? 'text-emerald-400' : 'text-amber-500'}`}>
+          <div className={`flex items-center gap-2 text-xs font-medium mb-2 ${isCollapsed ? 'justify-center' : ''} ${hasApiKey ? 'text-emerald-400' : 'text-amber-500'}`}>
               {hasApiKey ? <Wifi size={14} /> : <WifiOff size={14} />}
               {!isCollapsed && (
                   <span>{hasApiKey ? 'AI Connected' : 'Offline Mode'}</span>
               )}
           </div>
-          {!isCollapsed && !hasApiKey && (
-              <p className="text-[10px] text-slate-500 mt-1 pl-6">
-                  Nhập API Key vào file .env để mở khóa tính năng AI.
-              </p>
-          )}
+          
+          <button 
+            onClick={onOpenKeyModal}
+            className={`w-full flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-lg transition-colors text-xs font-bold ${isCollapsed ? 'justify-center' : ''}`}
+            title="Cấu hình API Key"
+          >
+             <Settings size={14} />
+             {!isCollapsed && "Cấu hình API"}
+          </button>
       </div>
     </div>
   );
