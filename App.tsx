@@ -13,8 +13,9 @@ import WordCounter from './components/Tools/WordCounter';
 import ImageCompressor from './components/Tools/ImageCompressor';
 import PlagiarismChecker from './components/Tools/PlagiarismChecker';
 import PdfToWord from './components/Tools/PdfToWord';
+import FancyTextGenerator from './components/Tools/FancyTextGenerator'; // Added
 // Graphic Tools
-import FacebookCreator from './components/Tools/FacebookCreator'; // Changed
+import FacebookCreator from './components/Tools/FacebookCreator'; 
 import BgRemover from './components/Tools/BgRemover';
 import ImageResizer from './components/Tools/ImageResizer';
 import BannerCreator from './components/Tools/BannerCreator';
@@ -36,14 +37,24 @@ import MiniAnalyticsDash from './components/Tools/MiniAnalyticsDash';
 import ChartGenerator from './components/Tools/ChartGenerator';
 
 import Dashboard from './components/Dashboard';
-import ApiKeyModal from './components/ApiKeyModal';
 import { ToolType } from './types';
-import { Menu, X, Key } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 
 const App: React.FC = () => {
   const [activeTool, setActiveTool] = useState<ToolType>(ToolType.DASHBOARD);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [showApiModal, setShowApiModal] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile toggle
+  const [isCollapsed, setIsCollapsed] = useState(false); // Desktop collapse
+
+  // Trigger resize event when sidebar toggles to force charts to redraw
+  useEffect(() => {
+    const handleResize = () => {
+      // Small delay to allow CSS transition to finish/start
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 300);
+    };
+    handleResize();
+  }, [isCollapsed]);
 
   // Hàm điều hướng thông minh: Lưu lịch sử + Chuyển trang
   const navigateToTool = (tool: ToolType) => {
@@ -82,9 +93,10 @@ const App: React.FC = () => {
       case ToolType.IMG_COMPRESS: return <ImageCompressor />;
       case ToolType.PLAGIARISM_CHECK: return <PlagiarismChecker />;
       case ToolType.PDF_TO_WORD: return <PdfToWord />;
+      case ToolType.FANCY_TEXT: return <FancyTextGenerator />; // Added
 
       // Graphic Tools
-      case ToolType.FB_CREATOR: return <FacebookCreator />; // Changed
+      case ToolType.FB_CREATOR: return <FacebookCreator />; 
       case ToolType.BG_REMOVER: return <BgRemover />;
       case ToolType.IMG_RESIZER: return <ImageResizer />;
       case ToolType.BANNER_GEN: return <BannerCreator />;
@@ -113,9 +125,6 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      {/* API Key Modal */}
-      <ApiKeyModal isOpen={showApiModal} onClose={() => setShowApiModal(false)} />
-
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div 
@@ -129,25 +138,17 @@ const App: React.FC = () => {
         activeTool={activeTool} 
         onSelect={navigateToTool}
         isOpen={isSidebarOpen}
-        onOpenSettings={() => {
-          setShowApiModal(true);
-          setIsSidebarOpen(false);
-        }}
+        isCollapsed={isCollapsed}
+        toggleCollapse={() => setIsCollapsed(!isCollapsed)}
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+      {/* min-w-0 is CRITICAL here: prevents flex children (charts) from overflowing */}
+      <div className="flex-1 flex flex-col h-screen overflow-hidden transition-all duration-300 min-w-0">
         {/* Mobile Header */}
-        <header className="bg-white border-b border-gray-200 p-4 flex items-center justify-between md:hidden">
+        <header className="bg-white border-b border-gray-200 p-4 flex items-center justify-between md:hidden flex-shrink-0">
           <span className="font-bold text-gray-800">SEO Master</span>
           <div className="flex items-center gap-2">
-            <button
-               onClick={() => setShowApiModal(true)}
-               className="p-2 text-yellow-600 bg-yellow-50 rounded-lg hover:bg-yellow-100"
-               title="Cài đặt API"
-            >
-              <Key size={20} />
-            </button>
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"

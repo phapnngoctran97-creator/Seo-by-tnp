@@ -2,17 +2,15 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 const getAiClient = () => {
-  // Logic: 
-  // 1. Hệ thống hỗ trợ nhiều loại Key (Gemini, OpenAI, DeepSeek) lưu trong localStorage.
-  // 2. Service này (geminiService) CHỈ chịu trách nhiệm làm việc với Google Gemini.
-  // 3. Vì vậy, nó chỉ lấy 'gemini_api_key'.
-  
-  const localKey = typeof window !== 'undefined' ? localStorage.getItem('gemini_api_key') : null;
-  const apiKey = localKey || process.env.API_KEY;
+  // STRICT FIX: The API key must be obtained exclusively from the environment variable.
+  // We remove localStorage logic to prevent conflicts and invalid key errors.
+  const apiKey = process.env.API_KEY;
 
   if (!apiKey) {
-    throw new Error("Vui lòng nhập Gemini API Key trong phần 'Cài đặt API' để sử dụng tính năng AI này.");
+    console.error("API Key is missing from process.env.API_KEY");
+    throw new Error("Hệ thống chưa được cấu hình API Key. Vui lòng kiểm tra biến môi trường.");
   }
+  
   return new GoogleGenAI({ apiKey });
 };
 
@@ -437,21 +435,34 @@ export const analyzeChartData = async (
   const dataStr = JSON.stringify(data);
   
   const prompt = `
-    Bạn là một chuyên gia phân tích dữ liệu (Data Analyst). Hãy phân tích dữ liệu biểu đồ sau và đưa ra nhận xét chi tiết.
+    Bạn là một Giám đốc Chiến lược (Chief Strategy Officer) và Chuyên gia Phân tích Dữ liệu.
+    
+    Nhiệm vụ: Phân tích sâu sắc dữ liệu biểu đồ sau để tìm ra "Insight" đắt giá nhất và đề xuất hành động.
     
     Thông tin biểu đồ:
     - Tiêu đề: "${title}"
     - Loại: ${type}
-    - Dữ liệu: ${dataStr}
-    - Ý nghĩa các cột: ${columnDescription}
+    - Dữ liệu thô: ${dataStr}
+    - Mô tả các cột: ${columnDescription}
 
-    Nhiệm vụ:
-    1. Nhận xét về xu hướng chung (Tăng/Giảm/Ổn định).
-    2. Chỉ ra các điểm nổi bật (Cao nhất, Thấp nhất) ở từng chuỗi dữ liệu.
-    3. Đưa ra so sánh giữa các chuỗi dữ liệu (nếu có nhiều hơn 1).
-    4. Đưa ra dự báo hoặc lời khuyên chiến lược ngắn gọn dựa trên số liệu này.
-    
-    Trình bày ngắn gọn, súc tích bằng Markdown.
+    Hãy trình bày báo cáo phân tích theo cấu trúc chuyên nghiệp sau (dùng Markdown):
+
+    ### 1. 📊 Executive Summary (Tóm tắt quản trị)
+    - Nhận định ngắn gọn trong 1 câu về tình hình chung (Tốt/Xấu/Tiềm năng).
+    - Con số ấn tượng nhất (Key Metric).
+
+    ### 2. 🔍 Deep Dive Analysis (Phân tích sâu)
+    - **Xu hướng (Trend):** Tăng trưởng hay suy giảm? Có tính mùa vụ không?
+    - **Điểm nóng (Hotspots):** Tháng/Kênh nào cao nhất? Tại sao? (Đưa ra giả thuyết logic).
+    - **Điểm yếu (Pain points):** Đâu là chỗ đang lỗ hoặc kém hiệu quả?
+    - **Tương quan (Correlation):** Nếu có 2 trục dữ liệu (ví dụ Doanh thu vs Lợi nhuận), chúng có đi cùng chiều không?
+
+    ### 3. 🚀 Strategic Recommendations (Đề xuất chiến lược)
+    - **Ngắn hạn:** Cần làm gì ngay lập tức? (VD: Cắt giảm chi phí kênh X, đẩy mạnh kênh Y).
+    - **Dài hạn:** Cơ hội mở rộng hoặc tối ưu hóa quy trình.
+    - **Rủi ro:** Cảnh báo nếu xu hướng hiện tại tiếp tục.
+
+    Giọng văn: Chuyên nghiệp, sắc sảo, dựa trên số liệu (Data-driven), không nói chung chung.
   `;
 
   try {
