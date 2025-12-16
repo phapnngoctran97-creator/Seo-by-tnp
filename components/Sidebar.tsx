@@ -5,10 +5,16 @@ import {
   LayoutDashboard, Sparkles, Search, Zap, Network, QrCode, 
   ChevronDown, ChevronRight, FileText, 
   Image as ImageIcon, BookOpen, Facebook, Eraser, Move, Palette, Aperture, List,
+<<<<<<< HEAD
   ClipboardCheck, Megaphone, Calculator, Layout, PieChart, Presentation,
   Pipette, Link, TrendingUp, DollarSign, Activity, FileType, BarChartBig,
   Briefcase, PenTool, Rocket, LineChart, Wrench, Type, PanelLeftClose, PanelLeftOpen,
   Wifi, WifiOff
+=======
+  ClipboardCheck, Megaphone, Target, Calculator, Layout, PieChart, Presentation,
+  Pipette, Link, BarChart3, TrendingUp, DollarSign, Activity, FileType, BarChartBig,
+  Briefcase, PenTool, Rocket, LineChart, Wrench, Type, PanelLeftClose, PanelLeftOpen
+>>>>>>> 21393189c92f5d631d3d4d9dd0a1a6525e75fb29
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -17,6 +23,10 @@ interface SidebarProps {
   isOpen: boolean; // Mobile open state
   isCollapsed?: boolean; // Desktop collapsed state
   toggleCollapse?: () => void;
+<<<<<<< HEAD
+=======
+  onOpenSettings: () => void;
+>>>>>>> 21393189c92f5d631d3d4d9dd0a1a6525e75fb29
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -24,11 +34,17 @@ const Sidebar: React.FC<SidebarProps> = ({
   onSelect, 
   isOpen, 
   isCollapsed = false,
+<<<<<<< HEAD
   toggleCollapse
+=======
+  toggleCollapse,
+  onOpenSettings 
+>>>>>>> 21393189c92f5d631d3d4d9dd0a1a6525e75fb29
 }) => {
   // Mặc định mở nhóm Chiến lược & Sáng tạo để user dễ tiếp cận
   const [expandedGroups, setExpandedGroups] = useState<string[]>(['Chiến Lược & Kế Hoạch', 'Sáng Tạo & Content']);
 
+<<<<<<< HEAD
   // Kiểm tra API Key từ biến môi trường
   const hasApiKey = !!process.env.API_KEY;
 
@@ -45,6 +61,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     ToolType.PLAGIARISM_CHECK
   ];
 
+=======
+>>>>>>> 21393189c92f5d631d3d4d9dd0a1a6525e75fb29
   // Cấu trúc lại theo Workflow của Marketer
   const navGroups: NavGroup[] = [
     {
@@ -184,7 +202,11 @@ const Sidebar: React.FC<SidebarProps> = ({
           {!isCollapsed && <span className="font-semibold text-sm">Dashboard</span>}
         </button>
 
+<<<<<<< HEAD
         {filteredGroups.map((group) => {
+=======
+        {navGroups.map((group) => {
+>>>>>>> 21393189c92f5d631d3d4d9dd0a1a6525e75fb29
           const GroupIcon = getGroupIcon(group.title);
           const isExpanded = expandedGroups.includes(group.title);
           
@@ -233,6 +255,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
+<<<<<<< HEAD
       {/* Footer Status */}
       <div className={`p-4 border-t border-slate-800 bg-[#0f172a] transition-all ${isCollapsed ? 'items-center justify-center' : ''}`}>
           <div className={`flex items-center gap-2 text-xs font-medium ${isCollapsed ? 'justify-center' : ''} ${hasApiKey ? 'text-emerald-400' : 'text-amber-500'}`}>
@@ -246,6 +269,30 @@ const Sidebar: React.FC<SidebarProps> = ({
                   Nhập API Key vào file .env để mở khóa tính năng AI.
               </p>
           )}
+=======
+      {/* Footer Settings */}
+      <div className={`p-4 border-t border-slate-800 bg-[#0f172a] ${isCollapsed ? 'flex justify-center' : ''}`}>
+        <button 
+          onClick={onOpenSettings}
+          className={`flex items-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-all border border-slate-700/50 hover:border-slate-600 group whitespace-nowrap
+            ${isCollapsed ? 'justify-center p-2 w-10 h-10' : 'w-full px-3 py-2.5 gap-3'}
+          `}
+          title="API Settings"
+        >
+          <div className={`rounded-md bg-slate-800 group-hover:bg-slate-700 flex items-center justify-center text-yellow-500 transition-colors flex-shrink-0 ${isCollapsed ? 'w-full h-full bg-transparent' : 'w-8 h-8'}`}>
+             <Key className={`${isCollapsed ? 'w-5 h-5' : 'w-4 h-4'}`} />
+          </div>
+          {!isCollapsed && (
+            <>
+                <div className="text-left flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">API Settings</p>
+                    <p className="text-[10px] text-slate-500 truncate">Gemini, OpenAI</p>
+                </div>
+                <Settings className="w-4 h-4 text-slate-600 group-hover:text-slate-400" />
+            </>
+          )}
+        </button>
+>>>>>>> 21393189c92f5d631d3d4d9dd0a1a6525e75fb29
       </div>
     </div>
   );

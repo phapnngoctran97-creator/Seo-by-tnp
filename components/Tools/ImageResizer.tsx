@@ -2,10 +2,9 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { 
   Move, Upload, Download, Lock, Unlock, RefreshCw, 
-  Smartphone, Monitor, Clipboard, Layers, Image as ImageIcon, 
-  Trash2, Play, CheckCircle, Plus, Crop, RotateCw, RotateCcw, 
-  FlipHorizontal, FlipVertical, X, Check, Maximize, MousePointer2,
-  ZoomIn, ArrowRight
+  Smartphone, Monitor, Layers, Image as ImageIcon, 
+  Trash2, Play, Grid3X3, RotateCw, RotateCcw, 
+  ZoomIn, MousePointer2, Settings, Crosshair, Maximize, ArrowRightLeft, FileImage, CheckCircle, X
 } from 'lucide-react';
 
 interface Preset {
@@ -16,33 +15,35 @@ interface Preset {
 }
 
 interface ImageTransform {
-  x: number; // Offset X in pixels (relative to center)
-  y: number; // Offset Y in pixels (relative to center)
-  scale: number; // Zoom level
+  x: number;
+  y: number;
+  scale: number;
 }
 
 interface ImageFile {
   id: string;
   file: File;
   preview: string; 
-  originalUrl: string; 
   originalSize: number;
   originalDims: { w: number, h: number };
   status: 'pending' | 'processing' | 'done';
   resultUrl?: string;
   resultSize?: number;
-  resultDims?: { w: number, h: number };
   transform: ImageTransform;
 }
 
 interface WatermarkSettings {
   enabled: boolean;
+  mode: 'single' | 'tiled';
   image: HTMLImageElement | null;
   imageUrl: string | null;
   opacity: number;
-  scale: number; // percentage of output width
-  x: number; // Percentage 0-100 (Center based)
-  y: number; // Percentage 0-100 (Center based)
+  scale: number; // percentage relative to canvas width
+  rotation: number;
+  x: number; // percentage 0-100
+  y: number; // percentage 0-100
+  density: number; // number of cols for tiled
+  stagger: boolean; // so le
 }
 
 const ImageResizer: React.FC = () => {
@@ -51,83 +52,148 @@ const ImageResizer: React.FC = () => {
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Canvas State
+  const [width, setWidth] = useState<number | ''>(1080);
+  const [height, setHeight] = useState<number | ''>(1080);
+  const [lockRatio, setLockRatio] = useState(false);
+  const [bgColor, setBgColor] = useState('#ffffff');
+  const [showGrid, setShowGrid] = useState(true);
+  
+  // Preview Stage State
+  const [stageScale, setStageScale] = useState(1);
+  const containerWrapperRef = useRef<HTMLDivElement>(null);
+  const wmCanvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Interaction State
   const [dragStart, setDragStart] = useState<{x: number, y: number} | null>(null);
   const [initialTransform, setInitialTransform] = useState<{x: number, y: number} | null>(null);
   const [dragAction, setDragAction] = useState<'move-image' | 'move-wm' | null>(null);
-  
-  // Stage State
-  const [stageScale, setStageScale] = useState(1); // Scale factor to fit Output Canvas into UI Container
-  
-  const containerWrapperRef = useRef<HTMLDivElement>(null);
-  const imgRef = useRef<HTMLImageElement>(null);
-
-  // Global Settings
-  const [width, setWidth] = useState<number | ''>(1080);
-  const [height, setHeight] = useState<number | ''>(1080);
-  const [lockRatio, setLockRatio] = useState(false);
-  const [format, setFormat] = useState<'image/jpeg' | 'image/png' | 'image/webp'>('image/jpeg');
-  const [quality, setQuality] = useState(90);
-  const [bgColor, setBgColor] = useState('#ffffff');
 
   // Watermark State
   const [wmSettings, setWmSettings] = useState<WatermarkSettings>({
     enabled: false,
+    mode: 'single',
     image: null,
     imageUrl: null,
-    opacity: 0.9,
+    opacity: 0.5,
     scale: 20, 
-    x: 90, // Bottom Right default (approx)
-    y: 90
+    rotation: 0,
+    x: 50, 
+    y: 50,
+    density: 3,
+    stagger: true
   });
 
   const PRESETS: Preset[] = [
     { label: 'FHD (1920px)', w: 1920, h: 1080, icon: Monitor },
-    { label: 'HD (1280px)', w: 1280, h: 720, icon: Monitor },
     { label: 'Square (1:1)', w: 1080, h: 1080, icon: Smartphone },
     { label: 'Story (9:16)', w: 1080, h: 1920, icon: Smartphone },
+    { label: 'Post (4:5)', w: 1080, h: 1350, icon: Smartphone },
   ];
 
-  // Helper to get active file
   const activeFile = files.find(f => f.id === selectedFileId) || files[0];
   const outW = Number(width) || 1080;
   const outH = Number(height) || 1080;
 
-  // --- Calculate Stage Scale (Fit to Screen) ---
+  // --- 1. CALCULATE STAGE SCALE (Auto Fit Screen) ---
   useLayoutEffect(() => {
     const calculateScale = () => {
       if (containerWrapperRef.current) {
         const { clientWidth, clientHeight } = containerWrapperRef.current;
-        // Add some padding
-        const padding = 40;
+        const padding = 60; 
         const availableW = clientWidth - padding;
         const availableH = clientHeight - padding;
 
         const scaleW = availableW / outW;
         const scaleH = availableH / outH;
         
-        // Fit contain
-        const newScale = Math.min(scaleW, scaleH, 1); // Max scale 1 (don't zoom in pixelated) unless user wants? Let's cap at 1 for UI niceness, or allow zoom?
-        // Actually, allowing > 1 is fine if output is tiny, but let's stick to fit.
-        // Better: Math.min(scaleW, scaleH) without cap 1 allows viewing 100px images on 1000px screen clearly? No, standard is fit-down.
-        setStageScale(Math.min(scaleW, scaleH)); 
+        setStageScale(Math.min(scaleW, scaleH, 1.2)); // Cap at 1.2x zoom
       }
     };
 
     calculateScale();
     window.addEventListener('resize', calculateScale);
     return () => window.removeEventListener('resize', calculateScale);
-  }, [outW, outH, files.length, activeFile]); // Recalc when output dims change
+  }, [outW, outH, files.length, activeFile]);
 
-  // --- File Handling ---
+  // --- 2. WATERMARK RENDER ENGINE ---
+  const renderWatermarkToContext = (
+      ctx: CanvasRenderingContext2D, 
+      canvasW: number, 
+      canvasH: number
+  ) => {
+      if (!wmSettings.enabled || !wmSettings.image) return;
 
-  const processFiles = (newFiles: FileList | File[]) => {
-    const currentCount = files.length;
-    const incoming = Array.from(newFiles).slice(0, 20 - currentCount); 
+      const wm = wmSettings.image;
+      // FIX: Use natural dimensions to preserve aspect ratio
+      const wmRatio = (wm.naturalWidth || wm.width) / (wm.naturalHeight || wm.height) || 1;
+      
+      let wmW = canvasW * (wmSettings.scale / 100);
+      let wmH = wmW / wmRatio;
+
+      ctx.save();
+      ctx.globalAlpha = wmSettings.opacity;
+      
+      // Ensure high quality scaling
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+
+      if (wmSettings.mode === 'single') {
+          const wx = (canvasW * (wmSettings.x / 100));
+          const wy = (canvasH * (wmSettings.y / 100));
+
+          ctx.translate(wx, wy);
+          ctx.rotate((wmSettings.rotation * Math.PI) / 180);
+          ctx.drawImage(wm, -wmW/2, -wmH/2, wmW, wmH);
+      } else {
+          const cols = Math.max(1, wmSettings.density);
+          const cellW = canvasW / cols;
+          const cellH = cellW; 
+          const rows = Math.ceil(canvasH / cellH) + 2;
+          const extraCols = 2; 
+
+          for (let r = -1; r < rows; r++) {
+              for (let c = -1; c <= cols + extraCols; c++) {
+                  let cx = c * cellW;
+                  let cy = r * cellH;
+
+                  if (wmSettings.stagger && r % 2 !== 0) {
+                      cx += cellW / 2;
+                  }
+
+                  ctx.save();
+                  ctx.translate(cx, cy);
+                  ctx.rotate((wmSettings.rotation * Math.PI) / 180);
+                  ctx.drawImage(wm, -wmW/2, -wmH/2, wmW, wmH);
+                  ctx.restore();
+              }
+          }
+      }
+      ctx.restore();
+  };
+
+  useEffect(() => {
+      const canvas = wmCanvasRef.current;
+      if (canvas) {
+          canvas.width = outW;
+          canvas.height = outH;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+              ctx.clearRect(0, 0, outW, outH);
+              renderWatermarkToContext(ctx, outW, outH);
+          }
+      }
+  }, [wmSettings, outW, outH]);
+
+  // --- 3. FILE HANDLING ---
+  const processFiles = (newFiles: FileList | null) => {
+    if (!newFiles || newFiles.length === 0) return;
     
-    if (incoming.length === 0) {
-      if (files.length >= 20) alert("Đã đạt giới hạn tối đa 20 file.");
-      return;
+    const incoming = Array.from(newFiles);
+    if (files.length + incoming.length > 20) {
+        alert("Tối đa 20 file.");
+        return;
     }
 
     const newImageFiles: ImageFile[] = incoming.map(file => {
@@ -136,96 +202,74 @@ const ImageResizer: React.FC = () => {
         id: Math.random().toString(36).substr(2, 9),
         file,
         preview: url,
-        originalUrl: url,
         originalSize: file.size,
         originalDims: { w: 0, h: 0 },
         status: 'pending',
-        transform: { x: 0, y: 0, scale: 1 } // Initial transform
+        transform: { x: 0, y: 0, scale: 1 }
       };
     });
 
-    // Load dimensions
+    // Detect Dims
     newImageFiles.forEach(imgFile => {
       const img = new Image();
       img.src = imgFile.preview;
       img.onload = () => {
-        setFiles(prev => prev.map(p => {
-            if (p.id !== imgFile.id) return p;
-            return { 
-                ...p, 
-                originalDims: { w: img.width, h: img.height },
-            };
-        }));
+        setFiles(prev => prev.map(p => p.id === imgFile.id ? { ...p, originalDims: { w: img.width, h: img.height } } : p));
+        
+        // Auto-set canvas size for first image
+        if (files.length === 0 && imgFile === newImageFiles[0]) {
+             setWidth(img.width);
+             setHeight(img.height);
+        }
       };
     });
 
     setFiles(prev => [...prev, ...newImageFiles]);
-    if (!selectedFileId && newImageFiles.length > 0) {
-      setSelectedFileId(newImageFiles[0].id);
-    }
+    if (!selectedFileId && newImageFiles.length > 0) setSelectedFileId(newImageFiles[0].id);
+    
+    // Reset input
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) processFiles(e.target.files);
+    processFiles(e.target.files);
   };
 
-  const handleWatermarkUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        const img = new Image();
-        img.src = evt.target?.result as string;
-        img.onload = () => {
-          setWmSettings(prev => ({ 
-             ...prev, 
-             image: img, 
-             imageUrl: evt.target?.result as string, 
-             enabled: true,
-             x: 50, // Center default on new upload
-             y: 50 
-          }));
-        };
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  useEffect(() => {
-    const handlePaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      const pastedFiles: File[] = [];
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
-          const file = items[i].getAsFile();
-          if (file) pastedFiles.push(file);
-        }
+  const setCanvasToOriginal = () => {
+      if (activeFile && activeFile.originalDims.w > 0) {
+          setWidth(activeFile.originalDims.w);
+          setHeight(activeFile.originalDims.h);
+          updateActiveTransform({ scale: 1, x: 0, y: 0 });
       }
-      if (pastedFiles.length > 0) processFiles(pastedFiles);
-    };
-    window.addEventListener('paste', handlePaste);
-    return () => window.removeEventListener('paste', handlePaste);
-  }, [files.length]);
-
-  const removeFile = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const newFiles = files.filter(f => f.id !== id);
-    setFiles(newFiles);
-    if (selectedFileId === id) setSelectedFileId(newFiles.length > 0 ? newFiles[0].id : null);
   };
 
-  // --- Interaction / Editor Logic ---
+  const handleReset = () => {
+      if(confirm('Bạn có chắc muốn xóa hết danh sách ảnh?')) {
+          setFiles([]);
+          setSelectedFileId(null);
+      }
+  };
 
+  // --- 4. INTERACTION ---
   const updateActiveTransform = (partial: Partial<ImageTransform>) => {
       if (!activeFile) return;
       setFiles(prev => prev.map(f => f.id === activeFile.id ? { ...f, transform: { ...f.transform, ...partial }, status: 'pending' } : f));
   };
 
+  const fitImage = (type: 'contain' | 'cover') => {
+      if(!activeFile || !outW || !outH) return;
+      const imgW = activeFile.originalDims.w || 1000;
+      const imgH = activeFile.originalDims.h || 1000;
+      const scaleW = outW / imgW;
+      const scaleH = outH / imgH;
+      let newScale = 1;
+      if (type === 'contain') newScale = Math.min(scaleW, scaleH);
+      else newScale = Math.max(scaleW, scaleH);
+      updateActiveTransform({ scale: newScale, x: 0, y: 0 });
+  };
+
   const handleMouseDown = (e: React.MouseEvent, type: 'image' | 'wm') => {
-      e.preventDefault();
-      e.stopPropagation();
-      
+      e.preventDefault(); e.stopPropagation();
       setDragStart({ x: e.clientX, y: e.clientY });
       
       if (type === 'image') {
@@ -233,9 +277,10 @@ const ImageResizer: React.FC = () => {
           setInitialTransform({ x: activeFile.transform.x, y: activeFile.transform.y });
           setDragAction('move-image');
       } else {
-          // Watermark
-          setInitialTransform({ x: wmSettings.x, y: wmSettings.y });
-          setDragAction('move-wm');
+          if (wmSettings.mode === 'single') {
+              setInitialTransform({ x: wmSettings.x, y: wmSettings.y });
+              setDragAction('move-wm');
+          }
       }
   };
 
@@ -244,8 +289,6 @@ const ImageResizer: React.FC = () => {
       
       const deltaX = e.clientX - dragStart.x;
       const deltaY = e.clientY - dragStart.y;
-      
-      // CRITICAL: Adjust delta by the Stage Scale to map Screen Pixels -> Canvas Pixels
       const realDeltaX = deltaX / stageScale;
       const realDeltaY = deltaY / stageScale;
 
@@ -255,61 +298,14 @@ const ImageResizer: React.FC = () => {
               y: initialTransform.y + realDeltaY
           });
       } else if (dragAction === 'move-wm') {
-          // Calculate percentage change based on Output Size
           const deltaPctX = (realDeltaX / outW) * 100;
           const deltaPctY = (realDeltaY / outH) * 100;
-          
-          let newX = initialTransform.x + deltaPctX;
-          let newY = initialTransform.y + deltaPctY;
-          
-          // Clamp to 0-100
-          newX = Math.max(0, Math.min(100, newX));
-          newY = Math.max(0, Math.min(100, newY));
-
-          setWmSettings(prev => ({ ...prev, x: newX, y: newY }));
+          setWmSettings(prev => ({ 
+              ...prev, 
+              x: Math.max(0, Math.min(100, initialTransform.x + deltaPctX)), 
+              y: Math.max(0, Math.min(100, initialTransform.y + deltaPctY)) 
+          }));
       }
-  };
-
-  const handleMouseUp = () => {
-      setDragAction(null);
-      setDragStart(null);
-      setInitialTransform(null);
-  };
-
-  // --- Processing ---
-
-  const rotate = (dir: 'cw' | 'ccw') => {
-    if (!activeFile) return;
-    const img = new Image();
-    img.src = activeFile.preview;
-    img.onload = () => {
-       const canvas = document.createElement('canvas');
-       canvas.width = img.height;
-       canvas.height = img.width;
-       const ctx = canvas.getContext('2d');
-       if (ctx) {
-         ctx.translate(canvas.width/2, canvas.height/2);
-         ctx.rotate((dir === 'cw' ? 90 : -90) * Math.PI / 180);
-         ctx.drawImage(img, -img.width/2, -img.height/2);
-         const newUrl = canvas.toDataURL();
-         setFiles(prev => prev.map(f => f.id === activeFile.id ? { ...f, preview: newUrl, status: 'pending' } : f));
-       }
-    };
-  };
-
-  const fitImage = (type: 'contain' | 'cover') => {
-      if(!activeFile || !outW || !outH) return;
-      const imgW = activeFile.originalDims.w || 1000;
-      const imgH = activeFile.originalDims.h || 1000;
-
-      const scaleW = outW / imgW;
-      const scaleH = outH / imgH;
-
-      let newScale = 1;
-      if (type === 'contain') newScale = Math.min(scaleW, scaleH);
-      else newScale = Math.max(scaleW, scaleH);
-
-      updateActiveTransform({ scale: newScale, x: 0, y: 0 });
   };
 
   const processBatch = async () => {
@@ -324,56 +320,33 @@ const ImageResizer: React.FC = () => {
         img.onload = () => {
           const canvas = document.createElement('canvas');
           const ctx = canvas.getContext('2d');
-          
           canvas.width = outW;
           canvas.height = outH;
 
           if (ctx) {
-            // High quality scaling
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
 
-            // Fill Background
             ctx.fillStyle = bgColor;
             ctx.fillRect(0, 0, outW, outH);
 
-            // Apply Transform for Main Image
-            // Logic: Translate to center -> Apply Offset -> Scale -> Draw Image centered at Origin
             ctx.translate(outW / 2, outH / 2);
             ctx.translate(fileData.transform.x, fileData.transform.y);
             ctx.scale(fileData.transform.scale, fileData.transform.scale);
-            
             ctx.drawImage(img, -img.width / 2, -img.height / 2);
-            
-            // Reset transform for Watermark
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.setTransform(1, 0, 0, 1, 0, 0); 
 
-            // Watermark Logic
-            if (wmSettings.enabled && wmSettings.image) {
-              const wm = wmSettings.image;
-              const wmRatio = wm.width / wm.height;
-              const wmW = outW * (wmSettings.scale / 100);
-              const wmH = wmW / wmRatio;
-              
-              // Calculate position based on Percentage (Center Anchor)
-              const wx = (outW * (wmSettings.x / 100)) - (wmW / 2);
-              const wy = (outH * (wmSettings.y / 100)) - (wmH / 2);
+            renderWatermarkToContext(ctx, outW, outH);
 
-              ctx.globalAlpha = wmSettings.opacity;
-              ctx.drawImage(wm, wx, wy, wmW, wmH);
-              ctx.globalAlpha = 1.0;
-            }
-
-            const resultUrl = canvas.toDataURL(format, quality / 100);
-            const head = `data:${format};base64,`;
+            const resultUrl = canvas.toDataURL('image/jpeg', 0.9);
+            const head = `data:image/jpeg;base64,`;
             const size = Math.round((resultUrl.length - head.length) * 3 / 4);
 
             resolve({
               ...fileData,
               status: 'done',
               resultUrl,
-              resultSize: size,
-              resultDims: { w: outW, h: outH }
+              resultSize: size
             });
           } else {
              resolve(fileData);
@@ -386,396 +359,356 @@ const ImageResizer: React.FC = () => {
     setIsProcessing(false);
   };
 
-  const formatSize = (bytes: number) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  // Helper to set preset position for watermark
-  const setWmPos = (pos: 'tl' | 'tc' | 'tr' | 'cl' | 'cc' | 'cr' | 'bl' | 'bc' | 'br') => {
-      let x = 50, y = 50;
-      switch(pos) {
-          case 'tl': x=5; y=5; break;
-          case 'tc': x=50; y=5; break;
-          case 'tr': x=95; y=5; break;
-          case 'cl': x=5; y=50; break;
-          case 'cc': x=50; y=50; break;
-          case 'cr': x=95; y=50; break;
-          case 'bl': x=5; y=95; break;
-          case 'bc': x=50; y=95; break;
-          case 'br': x=95; y=95; break;
-      }
-      setWmSettings(prev => ({...prev, x, y}));
+  const downloadAll = () => {
+      files.forEach(f => {
+          if (f.status === 'done' && f.resultUrl) {
+              const link = document.createElement('a');
+              link.href = f.resultUrl;
+              link.download = `processed_${f.file.name}`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+          }
+      });
   };
 
   return (
-    <div className="max-w-7xl mx-auto pb-20">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          <Move className="text-sky-600" /> Resize & Bố Cục Ảnh Pro
-        </h2>
-        <p className="text-gray-600 mt-2">Kéo thả vị trí, zoom, xoay và chèn logo trực quan (WYSIWYG).</p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* LEFT COLUMN: Controls */}
-        <div className="lg:col-span-4 space-y-6">
+    <div className="flex h-[calc(100vh-64px)] bg-gray-100 overflow-hidden">
+        
+        {/* LEFT SIDEBAR: CONTROLS */}
+        <div className="w-96 bg-white border-r border-gray-200 flex flex-col z-10 shadow-xl flex-shrink-0">
            
-           {/* Upload Box */}
-           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-sky-50 transition-colors cursor-pointer relative">
-                 <input type="file" multiple id="batch-upload" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" onChange={handleFileChange} />
-                 <div className="flex flex-col items-center pointer-events-none">
-                     <div className="w-12 h-12 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center mb-2">
-                        <Upload className="w-6 h-6" />
-                     </div>
-                     <span className="font-bold text-gray-700">Thêm ảnh (Tối đa 20)</span>
-                     <span className="text-xs text-gray-500 mt-1">Hoặc dán Ctrl+V</span>
-                 </div>
-             </div>
-             <div className="mt-3 flex justify-between text-xs text-gray-500">
-               <span>Đã chọn: {files.length}/20</span>
-               {files.length > 0 && (
-                 <button onClick={() => setFiles([])} className="text-red-500 hover:underline">Xóa tất cả</button>
+           <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white">
+               <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                   <Settings size={18} className="text-gray-500" /> Cấu Hình
+               </h3>
+               {activeFile && (
+                   <button onClick={setCanvasToOriginal} className="text-[10px] bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full hover:bg-blue-100 font-medium" title="Đặt kích thước bằng ảnh gốc">
+                       Auto Size
+                   </button>
                )}
-             </div>
            </div>
 
-           {/* 1. Canvas Settings */}
-           <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-             <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4 border-b pb-2">1. Khung Hình (Canvas)</h3>
-             
-             <div className="grid grid-cols-2 gap-2 mb-4">
-                 {PRESETS.map((p, idx) => (
-                     <button 
-                        key={idx}
-                        onClick={() => { setWidth(p.w); setHeight(p.h); }}
-                        className="flex items-center gap-2 px-2 py-1.5 text-xs border border-gray-200 rounded hover:bg-sky-50 hover:text-sky-700 hover:border-sky-200 text-left truncate"
-                     >
-                         <p.icon size={12} /> {p.label}
-                     </button>
-                 ))}
-             </div>
-
-             <div className="flex items-end gap-2 mb-4">
-                 <div className="flex-1">
-                     <label className="block text-xs font-semibold text-gray-500 mb-1">Rộng (px)</label>
-                     <input 
-                        type="number" 
-                        value={width} 
-                        onChange={(e) => setWidth(parseInt(e.target.value) || '')}
-                        className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-sky-500 outline-none"
-                     />
-                 </div>
-                 <button 
-                    onClick={() => setLockRatio(!lockRatio)}
-                    className={`p-2 mb-0.5 rounded transition-colors ${lockRatio ? 'bg-sky-500 text-white' : 'bg-gray-200 text-gray-400'}`}
-                    title="Khóa tỷ lệ khung hình"
-                 >
-                     {lockRatio ? <Lock size={16} /> : <Unlock size={16} />}
-                 </button>
-                 <div className="flex-1">
-                     <label className="block text-xs font-semibold text-gray-500 mb-1">Cao (px)</label>
-                     <input 
-                        type="number" 
-                        value={height} 
-                        onChange={(e) => setHeight(parseInt(e.target.value) || '')}
-                        className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-sky-500 outline-none"
-                     />
-                 </div>
-             </div>
-             
-             <div className="flex items-center gap-2 mb-4">
-                 <label className="text-xs text-gray-500">Màu nền khung:</label>
-                 <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="h-6 w-10 border border-gray-300 rounded cursor-pointer p-0" />
-             </div>
-
-             <div className="space-y-3">
-                 <div className="flex justify-between items-center bg-gray-50 p-1 rounded-lg">
-                    {['jpeg', 'png', 'webp'].map((fmt) => (
-                         <button
-                            key={fmt}
-                            onClick={() => setFormat(`image/${fmt}` as any)}
-                            className={`flex-1 py-1.5 text-xs rounded-md font-medium transition-all ${
-                                format === `image/${fmt}` 
-                                ? 'bg-white text-sky-600 shadow-sm' 
-                                : 'text-gray-500 hover:text-gray-700'
-                            }`}
-                         >
-                             {fmt.toUpperCase()}
-                         </button>
-                     ))}
-                 </div>
-                 <div>
-                     <div className="flex justify-between mb-1">
-                         <span className="text-xs text-gray-500">Chất lượng</span>
-                         <span className="text-xs font-bold text-sky-600">{quality}%</span>
-                     </div>
-                     <input 
-                        type="range" min="10" max="100" 
-                        value={quality}
-                        onChange={(e) => setQuality(parseInt(e.target.value))}
-                        className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-sky-600"
-                     />
-                 </div>
-             </div>
-           </div>
-
-           {/* 2. Watermark Settings */}
-           <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-               <div className="flex justify-between items-center mb-4 border-b pb-2">
-                   <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">2. Đóng dấu (Logo)</h3>
-                   <div className="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
-                        <input type="checkbox" name="toggle" id="wm-toggle" checked={wmSettings.enabled} onChange={(e) => setWmSettings(p => ({...p, enabled: e.target.checked}))} className="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
-                        <label htmlFor="wm-toggle" className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer ${wmSettings.enabled ? 'bg-sky-600' : 'bg-gray-300'}`}></label>
-                   </div>
-               </div>
-               
-               {wmSettings.enabled && (
-                   <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-                       {!wmSettings.imageUrl ? (
-                           <div className="border border-dashed border-gray-300 rounded p-4 text-center">
-                               <label className="cursor-pointer block">
-                                   <span className="text-xs text-sky-600 font-bold">Chọn ảnh Logo</span>
-                                   <input type="file" className="hidden" accept="image/*" onChange={handleWatermarkUpload} />
-                               </label>
-                           </div>
-                       ) : (
-                           <div className="flex items-center gap-3 bg-gray-50 p-2 rounded">
-                               <img src={wmSettings.imageUrl} className="w-10 h-10 object-contain bg-white rounded border" alt="logo" />
-                               <button onClick={() => setWmSettings(p => ({...p, image: null, imageUrl: null}))} className="text-xs text-red-500 hover:underline">Thay đổi</button>
-                           </div>
-                       )}
-
-                       <div className="flex gap-4">
-                           <div className="flex-1 space-y-3">
-                               <div>
-                                   <label className="block text-xs text-gray-500 mb-1">Kích thước (%)</label>
-                                   <input type="range" min="5" max="50" value={wmSettings.scale} onChange={(e) => setWmSettings(p => ({...p, scale: parseInt(e.target.value)}))} className="w-full h-1.5 bg-gray-200 rounded-lg accent-sky-600" />
-                               </div>
-                               <div>
-                                   <label className="block text-xs text-gray-500 mb-1">Độ mờ</label>
-                                   <input type="range" min="0.1" max="1" step="0.1" value={wmSettings.opacity} onChange={(e) => setWmSettings(p => ({...p, opacity: parseFloat(e.target.value)}))} className="w-full h-1.5 bg-gray-200 rounded-lg accent-sky-600" />
-                               </div>
-                           </div>
-                           <div className="grid grid-cols-3 gap-1 w-24 h-24 bg-gray-100 rounded border border-gray-200 p-1">
-                               {['tl', 'tc', 'tr', 'cl', 'cc', 'cr', 'bl', 'bc', 'br'].map(pos => (
-                                 <button
-                                   key={pos}
-                                   onClick={() => setWmPos(pos as any)}
-                                   className={`rounded-sm transition-colors hover:bg-gray-400 bg-gray-300`}
-                                   title={`Vị trí ${pos}`}
-                                 />
-                               ))}
+           <div className="flex-1 overflow-y-auto p-5 space-y-8 custom-scrollbar">
+               {/* 1. Dimensions */}
+               <div className="space-y-3">
+                   <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">Kích thước (Output)</label>
+                   
+                   <div className="flex gap-2">
+                       <div className="flex-1">
+                           <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all">
+                               <input 
+                                   type="number" 
+                                   value={width} 
+                                   onChange={e => setWidth(parseInt(e.target.value) || '')} 
+                                   className="w-full p-2.5 text-center font-bold text-gray-700 outline-none" 
+                                   placeholder="W" 
+                               />
+                               <div className="w-px h-6 bg-gray-300"></div>
+                               <input 
+                                   type="number" 
+                                   value={height} 
+                                   onChange={e => setHeight(parseInt(e.target.value) || '')} 
+                                   className="w-full p-2.5 text-center font-bold text-gray-700 outline-none" 
+                                   placeholder="H" 
+                               />
                            </div>
                        </div>
-                       <p className="text-[10px] text-gray-500 italic">Mẹo: Bạn có thể kéo thả logo trực tiếp trên ảnh bên phải.</p>
+                       
+                       <div className="w-12 h-12 flex-shrink-0 border border-gray-300 rounded-lg overflow-hidden cursor-pointer relative group">
+                           <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer p-0 border-0" />
+                           <div className="absolute inset-0 pointer-events-none flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-colors">
+                               <div className="w-4 h-4 rounded-full border border-black/20" style={{backgroundColor: bgColor}}></div>
+                           </div>
+                       </div>
                    </div>
+
+                   <div className="grid grid-cols-2 gap-2 mt-2">
+                       {PRESETS.map((p, idx) => (
+                           <button key={idx} onClick={() => { setWidth(p.w); setHeight(p.h); }} className={`flex items-center justify-center gap-1.5 px-2 py-2 text-xs border rounded transition-all truncate ${width === p.w && height === p.h ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold' : 'border-gray-200 hover:border-blue-300 bg-white text-gray-600'}`}>
+                               {p.label}
+                           </button>
+                       ))}
+                   </div>
+               </div>
+
+               {/* 2. Watermark */}
+               <div className="space-y-4 pt-6 border-t border-dashed border-gray-200">
+                   <div className="flex justify-between items-center">
+                       <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                           <Layers size={14}/> Watermark
+                       </label>
+                       <label className="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" checked={wmSettings.enabled} onChange={(e) => setWmSettings(p => ({...p, enabled: e.target.checked}))} className="sr-only peer"/>
+                            <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                       </label>
+                   </div>
+
+                   {wmSettings.enabled && (
+                       <div className="space-y-4 animate-in fade-in slide-in-from-top-2 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                           {!wmSettings.imageUrl ? (
+                               <label className="flex items-center justify-center p-4 border-2 border-dashed border-blue-300 bg-white rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+                                   <div className="text-center">
+                                       <Upload size={20} className="mx-auto text-blue-500 mb-1"/> 
+                                       <span className="text-xs text-blue-700 font-bold">Tải Logo (PNG)</span>
+                                   </div>
+                                   <input type="file" className="hidden" accept="image/*" onChange={(e) => {
+                                       const f = e.target.files?.[0];
+                                       if(f) {
+                                           const r = new FileReader();
+                                           r.onload = evt => {
+                                               const i = new Image();
+                                               i.src = evt.target?.result as string;
+                                               i.onload = () => setWmSettings(p => ({...p, image: i, imageUrl: i.src}));
+                                           };
+                                           r.readAsDataURL(f);
+                                       }
+                                   }} />
+                               </label>
+                           ) : (
+                               <div className="flex items-center gap-3 bg-white p-2 rounded border border-gray-200 shadow-sm">
+                                   <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center border overflow-hidden">
+                                       <img src={wmSettings.imageUrl} className="w-full h-full object-contain" alt="logo"/>
+                                   </div>
+                                   <div className="flex-1 min-w-0">
+                                       <div className="text-xs font-bold text-gray-700">Logo đã chọn</div>
+                                       <button onClick={() => setWmSettings(p => ({...p, image: null, imageUrl: null}))} className="text-[10px] text-red-500 hover:text-red-700 font-medium">Thay đổi</button>
+                                   </div>
+                               </div>
+                           )}
+
+                           <div className="flex bg-gray-200 p-1 rounded-lg">
+                               <button onClick={() => setWmSettings(p => ({...p, mode: 'single'}))} className={`flex-1 text-[10px] font-bold py-1.5 rounded ${wmSettings.mode === 'single' ? 'bg-white shadow text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}>1 Cái (Single)</button>
+                               <button onClick={() => setWmSettings(p => ({...p, mode: 'tiled'}))} className={`flex-1 text-[10px] font-bold py-1.5 rounded ${wmSettings.mode === 'tiled' ? 'bg-white shadow text-blue-700' : 'text-gray-500 hover:text-gray-700'}`}>Lặp lại (Tiled)</button>
+                           </div>
+
+                           <div className="space-y-3 pt-1">
+                               <div className="space-y-1">
+                                   <div className="flex justify-between text-[10px] font-bold text-gray-500 uppercase"><span>Kích thước</span> <span>{wmSettings.scale}%</span></div>
+                                   <input type="range" min="1" max="100" value={wmSettings.scale} onChange={e => setWmSettings(p => ({...p, scale: parseInt(e.target.value)}))} className="w-full h-1.5 bg-gray-300 rounded-lg accent-blue-600 appearance-none cursor-pointer" />
+                               </div>
+                               <div className="space-y-1">
+                                   <div className="flex justify-between text-[10px] font-bold text-gray-500 uppercase"><span>Độ mờ</span> <span>{Math.round(wmSettings.opacity * 100)}%</span></div>
+                                   <input type="range" min="0.1" max="1" step="0.1" value={wmSettings.opacity} onChange={e => setWmSettings(p => ({...p, opacity: parseFloat(e.target.value)}))} className="w-full h-1.5 bg-gray-300 rounded-lg accent-blue-600 appearance-none cursor-pointer" />
+                               </div>
+                               <div className="space-y-1">
+                                   <div className="flex justify-between text-[10px] font-bold text-gray-500 uppercase"><span>Xoay</span> <span>{wmSettings.rotation}°</span></div>
+                                   <input type="range" min="-180" max="180" value={wmSettings.rotation} onChange={e => setWmSettings(p => ({...p, rotation: parseInt(e.target.value)}))} className="w-full h-1.5 bg-gray-300 rounded-lg accent-blue-600 appearance-none cursor-pointer" />
+                               </div>
+                               
+                               {wmSettings.mode === 'tiled' && (
+                                   <div className="space-y-2 pt-2 border-t border-gray-200 border-dashed mt-2">
+                                       <div className="flex justify-between text-[10px] font-bold text-gray-500 uppercase"><span>Mật độ</span> <span>{wmSettings.density}x</span></div>
+                                       <input type="range" min="1" max="10" value={wmSettings.density} onChange={e => setWmSettings(p => ({...p, density: parseInt(e.target.value)}))} className="w-full h-1.5 bg-gray-300 rounded-lg accent-blue-600 appearance-none cursor-pointer" />
+                                       <label className="flex items-center gap-2 text-xs text-gray-700 font-medium pt-1 cursor-pointer">
+                                           <input type="checkbox" checked={wmSettings.stagger} onChange={e => setWmSettings(p => ({...p, stagger: e.target.checked}))} className="rounded text-blue-600 focus:ring-blue-500"/> Sắp xếp so le
+                                       </label>
+                                   </div>
+                               )}
+                           </div>
+                       </div>
+                   )}
+               </div>
+           </div>
+
+           <div className="p-4 border-t border-gray-200 bg-gray-50">
+               {files.some(f => f.status === 'done') ? (
+                   <button 
+                        onClick={downloadAll}
+                        className="w-full py-3.5 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all bg-green-600 hover:bg-green-700 hover:-translate-y-1 active:translate-y-0"
+                    >
+                        <Download size={20}/> Tải Tất Cả
+                    </button>
+               ) : (
+                   <button 
+                        onClick={processBatch}
+                        disabled={files.length === 0 || isProcessing}
+                        className={`w-full py-3.5 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all ${files.length===0 || isProcessing ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 hover:-translate-y-1 active:translate-y-0'}`}
+                    >
+                        {isProcessing ? <RefreshCw className="animate-spin" size={20}/> : <Play size={20}/>} Xử Lý Ảnh
+                    </button>
                )}
            </div>
-           
-           <button 
-                onClick={processBatch}
-                disabled={files.length === 0 || isProcessing}
-                className={`w-full py-4 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all ${
-                    files.length === 0 || isProcessing
-                    ? 'bg-gray-300 cursor-not-allowed'
-                    : 'bg-sky-600 hover:bg-sky-700 hover:-translate-y-1'
-                }`}
-            >
-                {isProcessing ? <RefreshCw className="animate-spin w-5 h-5" /> : <Play className="w-5 h-5 fill-current" />}
-                {isProcessing ? 'Đang xử lý...' : 'Xuất Ảnh (Tải Về)'}
-            </button>
         </div>
 
-        {/* RIGHT COLUMN: Interactive Editor */}
-        <div className="lg:col-span-8 flex flex-col h-full min-h-[700px]">
+        {/* CENTER: WORKSPACE */}
+        <div className="flex-1 flex flex-col relative overflow-hidden bg-[#f0f2f5]">
             
-            {/* 1. EDITOR TOOLBAR */}
-            <div className="bg-white p-2 rounded-t-xl border border-gray-200 border-b-0 flex items-center justify-between gap-2 overflow-x-auto shadow-sm z-10">
-                 <div className="flex gap-1">
-                     <button onClick={() => rotate('ccw')} className="p-2 text-gray-600 hover:bg-gray-100 rounded" title="Xoay trái"><RotateCcw size={18} /></button>
-                     <button onClick={() => rotate('cw')} className="p-2 text-gray-600 hover:bg-gray-100 rounded" title="Xoay phải"><RotateCw size={18} /></button>
-                 </div>
-
-                 <div className="flex items-center gap-4 flex-1 justify-center px-4">
-                     <span className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1"><ZoomIn size={14} /> Zoom</span>
-                     <input 
-                        type="range" 
-                        min="0.1" 
-                        max="3" 
-                        step="0.05" 
-                        value={activeFile?.transform.scale || 1} 
-                        onChange={(e) => updateActiveTransform({ scale: parseFloat(e.target.value) })}
-                        className="w-48 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-sky-600"
-                        title="Zoom ảnh"
-                     />
-                     <div className="flex gap-1 text-xs">
-                         <button onClick={() => fitImage('contain')} className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200">Fit</button>
-                         <button onClick={() => fitImage('cover')} className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200">Fill</button>
-                     </div>
-                 </div>
-
-                 <div className="flex gap-2">
-                     <button onClick={() => updateActiveTransform({x: 0, y: 0, scale: 1})} className="flex items-center gap-2 px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded text-sm transition-colors">
-                         <RefreshCw size={14} /> Reset
-                     </button>
-                 </div>
+            {/* Toolbar */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex gap-1 bg-white/90 backdrop-blur p-1.5 rounded-full shadow-lg border border-gray-200">
+                <button onClick={() => setShowGrid(!showGrid)} className={`p-2 rounded-full transition-colors ${showGrid ? 'bg-blue-100 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`} title="Lưới"><Grid3X3 size={18}/></button>
+                <div className="w-px h-6 bg-gray-300 mx-1 my-auto"></div>
+                <button onClick={() => fitImage('contain')} className="px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-full" title="Vừa khung">Fit</button>
+                <button onClick={() => fitImage('cover')} className="px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-full" title="Lấp đầy">Fill</button>
+                <div className="w-px h-6 bg-gray-300 mx-1 my-auto"></div>
+                <div className="flex items-center gap-2 px-2">
+                    <ZoomIn size={14} className="text-gray-400"/>
+                    <input type="range" min="0.1" max="3" step="0.1" value={activeFile?.transform.scale || 1} onChange={e => updateActiveTransform({scale: parseFloat(e.target.value)})} className="w-20 h-1 bg-gray-300 rounded-lg accent-blue-600 appearance-none cursor-pointer" />
+                </div>
+                
+                {/* Download Button for Active File */}
+                {activeFile?.status === 'done' && activeFile.resultUrl && (
+                    <>
+                        <div className="w-px h-6 bg-gray-300 mx-1 my-auto"></div>
+                        <a 
+                            href={activeFile.resultUrl}
+                            download={`processed_${activeFile.file.name}`}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded-full text-xs font-bold hover:bg-green-700 shadow-sm"
+                        >
+                            <Download size={14} /> Tải Ảnh Này
+                        </a>
+                    </>
+                )}
             </div>
 
-            {/* 2. MAIN INTERACTIVE CANVAS */}
+            {/* Canvas Stage */}
             <div 
                 ref={containerWrapperRef}
-                className="bg-gray-100 border-x border-gray-200 flex-1 relative overflow-hidden flex items-center justify-center p-8 bg-[url('https://media.istockphoto.com/id/1226505703/vector/transparent-background-seamless-pattern-vector-stock-illustration.jpg?s=612x612&w=0&k=20&c=J9_e3T_u6sYq5t0VqA-L9p9Z9y-j7Z5Z9y-j7Z5Z9y.jpg')] select-none"
+                className="flex-1 overflow-hidden flex items-center justify-center p-10 select-none cursor-grab active:cursor-grabbing bg-[url('https://media.istockphoto.com/id/1226505703/vector/transparent-background-seamless-pattern-vector-stock-illustration.jpg?s=612x612&w=0&k=20&c=J9_e3T_u6sYq5t0VqA-L9p9Z9y-j7Z5Z9y-j7Z5Z9y.jpg')] bg-repeat"
                 onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
+                onMouseUp={() => { setDragAction(null); setDragStart(null); }}
+                onMouseLeave={() => { setDragAction(null); setDragStart(null); }}
             >
                 {!activeFile ? (
-                    <div className="text-center text-gray-400">
-                        <ImageIcon className="w-16 h-16 mx-auto mb-2 opacity-30" />
-                        <p>Chọn ảnh để chỉnh sửa</p>
+                    <div className="text-center bg-white p-8 rounded-2xl shadow-xl border-2 border-dashed border-gray-200 max-w-md">
+                        <div className="w-20 h-20 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Upload size={32} />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-800 mb-2">Bắt đầu thiết kế</h3>
+                        <p className="text-gray-500 text-sm mb-6">Tải ảnh lên để resize, crop và đóng dấu logo hàng loạt.</p>
+                        <button onClick={() => fileInputRef.current?.click()} className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-md transition-all">
+                            Tải Ảnh Lên
+                        </button>
                     </div>
                 ) : (
-                    // VIRTUAL STAGE: This represents the ACTUAL Output Canvas Dimensions (e.g., 1920x1080)
-                    // We simply scale it down visually to fit the screen using CSS Transform.
                     <div 
-                        className="relative shadow-2xl bg-white origin-center"
+                        className="relative shadow-2xl origin-center bg-white transition-transform duration-75 ease-out ring-1 ring-black/5"
                         style={{
                             width: `${outW}px`,
                             height: `${outH}px`,
-                            backgroundColor: bgColor,
                             transform: `scale(${stageScale})`,
-                            transition: dragAction ? 'none' : 'transform 0.2s ease-out', // Only animate scale changes (resize), not drags
                         }}
                     >
-                        {/* OVERLAY FOR MOUSE EVENTS (Capture interactions) */}
-                         <div 
-                            className="absolute inset-0 z-50"
-                            style={{ cursor: dragAction === 'move-wm' ? 'grabbing' : 'grab' }}
-                            onMouseDown={(e) => handleMouseDown(e, 'image')}
-                         />
+                        <div className="absolute inset-0 z-0" style={{backgroundColor: bgColor}}></div>
 
-                        {/* THE IMAGE LAYER */}
-                        {/* Positioned centered, then transformed */}
-                        <div className="absolute top-1/2 left-1/2 w-0 h-0 pointer-events-none">
-                            <img 
-                                ref={imgRef}
-                                src={activeFile.preview} 
-                                alt="Editable" 
-                                draggable={false}
+                        <div className="absolute inset-0 z-10 overflow-hidden">
+                             <div 
+                                className="absolute top-1/2 left-1/2 w-0 h-0"
                                 style={{
-                                    // Logic: Translate relative to center of canvas -> Scale -> Center Image on its own pivot
-                                    transform: `translate(${activeFile.transform.x}px, ${activeFile.transform.y}px) scale(${activeFile.transform.scale}) translate(-50%, -50%)`,
-                                    maxWidth: 'none', // Allow it to overflow naturally
-                                    width: 'auto', // Use natural size
+                                    transform: `translate(${activeFile.transform.x}px, ${activeFile.transform.y}px) scale(${activeFile.transform.scale})`
                                 }}
-                            />
+                             >
+                                <img 
+                                    src={activeFile.preview} 
+                                    alt="Main" 
+                                    draggable={false}
+                                    className="max-w-none"
+                                    style={{ transform: 'translate(-50%, -50%)' }}
+                                />
+                             </div>
                         </div>
 
-                        {/* THE WATERMARK LAYER */}
-                        {wmSettings.enabled && wmSettings.imageUrl && (
-                            <img 
-                                src={wmSettings.imageUrl}
-                                alt="Watermark"
-                                draggable={false}
-                                onMouseDown={(e) => {
-                                    // Stop propagation to avoid dragging image
-                                    handleMouseDown(e, 'wm');
-                                }}
-                                style={{
-                                    position: 'absolute',
-                                    left: `${wmSettings.x}%`,
-                                    top: `${wmSettings.y}%`,
-                                    width: `${wmSettings.scale}%`,
-                                    opacity: wmSettings.opacity,
-                                    transform: 'translate(-50%, -50%)', // Anchor center
-                                    cursor: 'move',
-                                    zIndex: 60, // Above overlay
-                                    border: dragAction === 'move-wm' ? '2px dashed #0ea5e9' : 'none',
-                                    pointerEvents: 'auto'
-                                }}
+                        {wmSettings.enabled && (
+                            <canvas 
+                                ref={wmCanvasRef}
+                                className="absolute inset-0 z-20 pointer-events-none"
+                                style={{ width: '100%', height: '100%' }}
                             />
                         )}
 
-                        {/* GRID OVERLAY (Visual Only) */}
-                        <div className="absolute inset-0 pointer-events-none opacity-0 hover:opacity-30 transition-opacity z-40">
-                             <div className="w-full h-full border border-sky-400"></div>
-                             <div className="absolute top-1/2 left-0 w-full h-px bg-sky-400"></div>
-                             <div className="absolute left-1/2 top-0 h-full w-px bg-sky-400"></div>
+                        <div 
+                            className="absolute inset-0 z-30"
+                            onMouseDown={(e) => handleMouseDown(e, 'image')}
+                        />
+
+                        {wmSettings.enabled && wmSettings.mode === 'single' && (
+                            <div 
+                                className="absolute z-40 w-12 h-12 -ml-6 -mt-6 bg-blue-500/50 border-2 border-white rounded-full shadow-lg cursor-move flex items-center justify-center hover:bg-blue-600/80 transition-colors backdrop-blur-sm"
+                                style={{
+                                    left: `${wmSettings.x}%`,
+                                    top: `${wmSettings.y}%`,
+                                }}
+                                onMouseDown={(e) => handleMouseDown(e, 'wm')}
+                                title="Kéo Logo"
+                            >
+                                <Crosshair size={20} className="text-white" />
+                            </div>
+                        )}
+
+                        {showGrid && (
+                            <div className="absolute inset-0 z-50 pointer-events-none opacity-30">
+                                <div className="absolute top-1/3 w-full h-px bg-cyan-400 border-t border-dashed"></div>
+                                <div className="absolute top-2/3 w-full h-px bg-cyan-400 border-t border-dashed"></div>
+                                <div className="absolute left-1/3 h-full w-px bg-cyan-400 border-l border-dashed"></div>
+                                <div className="absolute left-2/3 h-full w-px bg-cyan-400 border-l border-dashed"></div>
+                                <div className="absolute inset-4 border border-cyan-400/50 rounded"></div>
+                            </div>
+                        )}
+                        
+                        <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-black/70 text-white text-[10px] px-3 py-1 rounded-full font-mono">
+                            {outW} x {outH}
                         </div>
                     </div>
                 )}
             </div>
 
-            {/* 3. FILE LIST */}
-            <div className="bg-white rounded-b-xl border border-gray-200 border-t-0 h-48 flex flex-col">
-                 <div className="p-2 bg-gray-50 border-b border-gray-200 flex justify-between items-center text-xs text-gray-500 px-4">
-                    <span>Hàng đợi: {files.length} ảnh</span>
-                    <span>Click để chỉnh sửa từng ảnh</span>
-                 </div>
-                 <div className="flex-1 overflow-y-auto p-2 space-y-2">
-                    {files.map((file) => (
+            {/* Bottom File List */}
+            {files.length > 0 && (
+                <div className="h-28 bg-white border-t border-gray-200 flex items-center px-4 gap-3 overflow-x-auto custom-scrollbar z-10">
+                    <button onClick={() => fileInputRef.current?.click()} className="flex-shrink-0 w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50 transition-all">
+                        <Upload size={24} />
+                        <span className="text-[10px] font-bold mt-1">Thêm</span>
+                    </button>
+                    {files.map(f => (
                         <div 
-                           key={file.id}
-                           onClick={() => setSelectedFileId(file.id)}
-                           className={`flex items-center gap-3 p-2 rounded-lg border transition-colors cursor-pointer ${
-                              selectedFileId === file.id ? 'bg-sky-50 border-sky-300 ring-1 ring-sky-200' : 'bg-white border-gray-100 hover:border-gray-300'
-                           }`}
+                            key={f.id} 
+                            onClick={() => setSelectedFileId(f.id)}
+                            className={`flex-shrink-0 w-56 p-2 rounded-xl border cursor-pointer flex items-center gap-3 transition-all relative ${selectedFileId === f.id ? 'bg-blue-50 border-blue-400 ring-1 ring-blue-200' : 'bg-white border-gray-200 hover:border-gray-300'}`}
                         >
-                           <img src={file.preview} className="w-10 h-10 object-cover rounded bg-gray-100" alt="thumb" />
-                           <div className="flex-1 min-w-0">
-                               <p className="text-sm font-medium text-gray-800 truncate">{file.file.name}</p>
-                               <div className="flex gap-2 text-xs text-gray-400">
-                                   <span>{formatSize(file.originalSize)}</span>
-                                   {file.status === 'done' && file.resultSize && (
-                                       <span className="text-green-600 font-bold">➜ {formatSize(file.resultSize)}</span>
-                                   )}
-                               </div>
-                           </div>
-                           
-                           {file.status === 'done' && file.resultUrl ? (
-                              <a 
-                                 href={file.resultUrl} 
-                                 download={`resized_${file.file.name}`}
-                                 onClick={(e) => e.stopPropagation()}
-                                 className="p-1.5 bg-green-100 text-green-700 rounded hover:bg-green-200"
-                              >
-                                 <Download size={16} />
-                              </a>
-                           ) : (
-                              <button 
-                                 onClick={(e) => removeFile(file.id, e)}
-                                 className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
-                              >
-                                 <Trash2 size={16} />
-                              </button>
-                           )}
+                            <img src={f.preview} className="w-12 h-12 object-cover rounded-lg bg-gray-100" />
+                            <div className="flex-1 min-w-0">
+                                <div className="text-sm font-bold text-gray-800 truncate mb-0.5">{f.file.name}</div>
+                                <div className="text-[10px] text-gray-500">{Math.round(f.originalSize/1024)} KB</div>
+                            </div>
+                            
+                            {/* Download Button in List */}
+                            {f.status === 'done' && f.resultUrl ? (
+                                <a 
+                                    href={f.resultUrl} 
+                                    download={`processed_${f.file.name}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="p-2 bg-green-100 text-green-700 rounded-full hover:bg-green-200 transition-colors"
+                                    title="Tải về"
+                                >
+                                    <Download size={16} />
+                                </a>
+                            ) : f.status === 'done' ? (
+                                <div className="p-2"><CheckCircle size={16} className="text-green-500" /></div>
+                            ) : null}
+
+                            <button onClick={(e) => { e.stopPropagation(); setFiles(files.filter(x => x.id !== f.id)); }} className="absolute -top-2 -right-2 bg-white text-gray-400 hover:text-red-500 p-1 rounded-full shadow-md border hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100">
+                                <X size={12}/>
+                            </button>
                         </div>
                     ))}
-                    {files.length === 0 && (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-400 text-sm">
-                           <span>Chưa có ảnh nào</span>
-                        </div>
+                    {files.length > 0 && (
+                        <button onClick={handleReset} className="ml-2 text-xs font-medium text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors">
+                            Xóa hết
+                        </button>
                     )}
-                 </div>
-            </div>
+                </div>
+            )}
         </div>
-      </div>
-      
-      {/* CSS for custom toggle switch */}
-      <style>{`
-        .toggle-checkbox:checked {
-          right: 0;
-          border-color: #0284c7;
-        }
-        .toggle-checkbox:checked + .toggle-label {
-          background-color: #0284c7;
-        }
-      `}</style>
+
+        {/* Hidden Input */}
+        <input 
+            type="file" 
+            ref={fileInputRef}
+            multiple 
+            className="hidden" 
+            accept="image/*" 
+            onChange={handleFileChange} 
+        />
     </div>
   );
 };
