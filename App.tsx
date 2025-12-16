@@ -44,21 +44,6 @@ const App: React.FC = () => {
   const [activeTool, setActiveTool] = useState<ToolType>(ToolType.DASHBOARD);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile toggle
   const [isCollapsed, setIsCollapsed] = useState(false); // Desktop collapse
-<<<<<<< HEAD
-
-  // Trigger resize event when sidebar toggles to force charts to redraw
-  useEffect(() => {
-    const handleResize = () => {
-      // Small delay to allow CSS transition to finish/start
-      setTimeout(() => {
-        window.dispatchEvent(new Event('resize'));
-      }, 300);
-    };
-    handleResize();
-  }, [isCollapsed]);
-=======
-  const [showApiModal, setShowApiModal] = useState(false);
->>>>>>> 21393189c92f5d631d3d4d9dd0a1a6525e75fb29
 
   // Trigger resize event when sidebar toggles to force charts to redraw
   useEffect(() => {
@@ -155,13 +140,6 @@ const App: React.FC = () => {
         isOpen={isSidebarOpen}
         isCollapsed={isCollapsed}
         toggleCollapse={() => setIsCollapsed(!isCollapsed)}
-<<<<<<< HEAD
-=======
-        onOpenSettings={() => {
-          setShowApiModal(true);
-          setIsSidebarOpen(false);
-        }}
->>>>>>> 21393189c92f5d631d3d4d9dd0a1a6525e75fb29
       />
 
       {/* Main Content */}

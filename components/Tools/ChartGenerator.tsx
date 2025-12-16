@@ -80,11 +80,8 @@ const ChartGenerator: React.FC = () => {
 
   const chartRef = useRef<HTMLDivElement>(null);
 
-<<<<<<< HEAD
   const hasApiKey = !!process.env.API_KEY;
 
-=======
->>>>>>> 21393189c92f5d631d3d4d9dd0a1a6525e75fb29
   useEffect(() => {
     const saved = localStorage.getItem('saved_charts');
     if (saved) {
@@ -763,7 +760,6 @@ const ChartGenerator: React.FC = () => {
                     >
                         <ImageIcon className="w-4 h-4" /> Lưu ảnh (PNG)
                     </button>
-<<<<<<< HEAD
                     {hasApiKey && (
                         <button 
                             onClick={handleAnalyze}
@@ -774,25 +770,11 @@ const ChartGenerator: React.FC = () => {
                             {isAnalyzing ? 'Đang đọc số liệu...' : 'Phân tích AI'}
                         </button>
                     )}
-=======
-                    <button 
-                        onClick={handleAnalyze}
-                        disabled={isAnalyzing}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-black text-white rounded-lg font-bold shadow hover:shadow-lg transition-all disabled:opacity-70 text-sm hover:-translate-y-0.5 hover:bg-gray-800"
-                    >
-                        {isAnalyzing ? <Loader2 className="animate-spin w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
-                        {isAnalyzing ? 'Đang đọc số liệu...' : 'Phân tích AI'}
-                    </button>
->>>>>>> 21393189c92f5d631d3d4d9dd0a1a6525e75fb29
                 </div>
             </div>
 
             {/* AI Analysis Result */}
-<<<<<<< HEAD
             {analysisResult && hasApiKey && (
-=======
-            {analysisResult && (
->>>>>>> 21393189c92f5d631d3d4d9dd0a1a6525e75fb29
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 animate-in slide-in-from-bottom-4 mb-10">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="font-bold text-black flex items-center gap-2">
