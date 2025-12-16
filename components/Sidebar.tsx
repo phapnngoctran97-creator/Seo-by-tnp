@@ -8,7 +8,7 @@ import {
   ClipboardCheck, Megaphone, Calculator, Layout, PieChart, Presentation,
   Pipette, Link, TrendingUp, DollarSign, Activity, FileType, BarChartBig,
   Briefcase, PenTool, Rocket, LineChart, Wrench, Type, PanelLeftClose, PanelLeftOpen,
-  Wifi, WifiOff, Settings
+  Wifi, WifiOff, Settings, LogOut, Key
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -28,10 +28,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   toggleCollapse,
   onOpenKeyModal
 }) => {
-  // Mặc định mở nhóm Chiến lược & Sáng tạo để user dễ tiếp cận
+  // Mặc định mở nhóm Chiến lược & Sáng tạo
   const [expandedGroups, setExpandedGroups] = useState<string[]>(['Chiến Lược & Kế Hoạch', 'Sáng Tạo & Content']);
   
-  // Check API Key (Env OR LocalStorage)
+  // Check API Key
   const [hasApiKey, setHasApiKey] = useState(false);
 
   useEffect(() => {
@@ -40,12 +40,10 @@ const Sidebar: React.FC<SidebarProps> = ({
        setHasApiKey(!!key);
     };
     checkKey();
-    // Optional: Listen to storage event if multiple tabs
     window.addEventListener('storage', checkKey);
     return () => window.removeEventListener('storage', checkKey);
   }, []);
 
-  // Danh sách các công cụ bắt buộc phải có API Key mới chạy được
   const aiOnlyTools = [
     ToolType.PLAN_SLIDES,
     ToolType.ADS_STRUCTURE,
@@ -58,10 +56,9 @@ const Sidebar: React.FC<SidebarProps> = ({
     ToolType.PLAGIARISM_CHECK
   ];
 
-  // Cấu trúc lại theo Workflow của Marketer
   const navGroups: NavGroup[] = [
     {
-      title: 'Chiến Lược & Kế Hoạch',
+      title: 'Chiến Lược',
       items: [
         { id: ToolType.PLAN_SLIDES, label: 'Slide Kế Hoạch', icon: Presentation, description: 'Tạo slide MKT tự động' },
         { id: ToolType.BUDGET_PLANNER, label: 'Dự Tính Ngân Sách', icon: PieChart, description: 'Phân bổ ngân sách Ads' },
@@ -70,18 +67,18 @@ const Sidebar: React.FC<SidebarProps> = ({
       ]
     },
     {
-      title: 'Sáng Tạo & Content',
+      title: 'Content & Ads',
       items: [
         { id: ToolType.ADS_CONTENT, label: 'Viết Content Ads', icon: Megaphone, description: 'Viết lời quảng cáo' },
         { id: ToolType.META_GEN, label: 'Tạo Meta SEO', icon: Sparkles, description: 'Viết Title & Desc' },
         { id: ToolType.OUTLINE_GEN, label: 'Dàn Ý Bài Viết', icon: List, description: 'Outline chuẩn SEO' },
         { id: ToolType.FB_CREATOR, label: 'Thiết Kế Ảnh FB', icon: Facebook, description: 'Post, Ads, Story' },
         { id: ToolType.BANNER_GEN, label: 'Tạo Banner Nhanh', icon: Palette, description: 'Cover & Thumbnail' },
-        { id: ToolType.LANDING_LAYOUT, label: 'Layout Landing Page', icon: Layout, description: 'Gợi ý giao diện' },
+        { id: ToolType.LANDING_LAYOUT, label: 'Layout Landing', icon: Layout, description: 'Gợi ý giao diện' },
       ]
     },
     {
-      title: 'SEO & Tăng Trưởng',
+      title: 'SEO & Web',
       items: [
         { id: ToolType.SEO_GRADER, label: 'Chấm Điểm SEO', icon: ClipboardCheck, description: 'Audit bài viết' },
         { id: ToolType.KEYWORD_CHECK, label: 'Mật Độ Từ Khóa', icon: Search, description: 'Check Keyword Stuffing' },
@@ -90,7 +87,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       ]
     },
     {
-      title: 'Hiệu Suất & Dữ Liệu',
+      title: 'Analytics',
       items: [
         { id: ToolType.CHART_GEN, label: 'Tạo Biểu Đồ', icon: BarChartBig, description: 'Vẽ chart báo cáo' },
         { id: ToolType.ROI_CALCULATOR, label: 'Tính Lãi Lỗ (P&L)', icon: TrendingUp, description: 'ROI thực tế' },
@@ -100,7 +97,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       ]
     },
     {
-      title: 'Công Cụ Tiện Ích',
+      title: 'Tiện Ích',
       items: [
         { id: ToolType.FANCY_TEXT, label: 'Tạo Chữ Kiểu', icon: Type, description: 'YayText Generator' },
         { id: ToolType.QR_GEN, label: 'Tạo QR Code', icon: QrCode, description: 'Tạo mã QR' },
@@ -117,7 +114,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   ];
 
-  // Lọc các group để ẩn công cụ AI nếu không có Key
   const filteredGroups = navGroups.map(group => ({
     ...group,
     items: group.items.filter(item => hasApiKey || !aiOnlyTools.includes(item.id))
@@ -126,9 +122,12 @@ const Sidebar: React.FC<SidebarProps> = ({
   const toggleGroup = (title: string) => {
     if (isCollapsed && toggleCollapse) {
         toggleCollapse();
-        if (!expandedGroups.includes(title)) {
-            setExpandedGroups(prev => [...prev, title]);
-        }
+        // Delay slighty to wait for expansion animation
+        setTimeout(() => {
+            if (!expandedGroups.includes(title)) {
+                setExpandedGroups(prev => [...prev, title]);
+            }
+        }, 150);
         return;
     }
 
@@ -137,103 +136,129 @@ const Sidebar: React.FC<SidebarProps> = ({
     );
   };
 
-  const getGroupIcon = (title: string) => {
-    if (title.includes('Chiến Lược')) return Briefcase;
-    if (title.includes('Sáng Tạo')) return PenTool;
-    if (title.includes('Tăng Trưởng')) return Rocket;
-    if (title.includes('Hiệu Suất')) return LineChart;
-    return Wrench;
-  };
-
   return (
-    <div className={`fixed inset-y-0 left-0 z-50 bg-[#0f172a] text-slate-300 transform transition-all duration-300 ease-in-out border-r border-slate-800 shadow-2xl flex flex-col
-        ${isOpen ? 'translate-x-0' : '-translate-x-full'} 
-        md:relative md:translate-x-0 
-        ${isCollapsed ? 'w-20' : 'w-72'}
-    `}>
-      {/* Brand Header */}
-      <div className={`p-4 border-b border-slate-800 bg-[#0f172a] flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
-        <div className={`flex items-center gap-3 overflow-hidden ${isCollapsed ? 'justify-center' : ''}`}>
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 flex-shrink-0">
-            <Sparkles size={18} fill="currentColor" />
+    <aside 
+        className={`
+            fixed inset-y-0 left-0 z-50 bg-[#0f172a] text-slate-400 
+            transition-all duration-300 ease-in-out 
+            border-r border-slate-800 shadow-2xl flex flex-col
+            ${isOpen ? 'translate-x-0' : '-translate-x-full'} 
+            md:relative md:translate-x-0 
+            ${isCollapsed ? 'w-[4.5rem]' : 'w-72'}
+        `}
+    >
+      {/* 1. Header Section */}
+      <div className={`
+          h-16 flex items-center border-b border-slate-800/80 bg-[#0f172a]
+          ${isCollapsed ? 'justify-center px-0' : 'justify-between px-5'}
+      `}>
+        <div className="flex items-center gap-3 overflow-hidden">
+          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 flex-shrink-0">
+            <Sparkles size={18} strokeWidth={2.5} />
           </div>
           {!isCollapsed && (
-            <div className="whitespace-nowrap transition-opacity duration-200">
-                <h1 className="text-lg font-bold text-white tracking-tight leading-none">
-                MarketingOS
-                </h1>
-                <p className="text-[10px] text-slate-500 font-medium mt-1 uppercase tracking-wider">All-in-one Toolkit</p>
+            <div className="flex flex-col animate-in fade-in duration-300">
+                <span className="text-sm font-bold text-white tracking-wide leading-none">MarketingOS</span>
+                <span className="text-[10px] text-slate-500 font-medium mt-1">All-in-one Toolkit</span>
             </div>
           )}
         </div>
         
-        {/* Desktop Toggle Button */}
-        <button 
-            onClick={toggleCollapse}
-            className={`hidden md:flex p-1.5 rounded-md hover:bg-slate-800 text-slate-500 hover:text-white transition-colors ${isCollapsed ? 'absolute -right-3 top-12 bg-slate-700 border border-slate-600 shadow-md' : ''}`}
-            title={isCollapsed ? "Mở rộng" : "Thu gọn"}
-        >
-            {isCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={18} />}
-        </button>
+        {/* Toggle Button (Desktop Only) */}
+        {!isCollapsed && (
+            <button 
+                onClick={toggleCollapse}
+                className="hidden md:flex p-1.5 rounded-lg text-slate-500 hover:bg-slate-800 hover:text-slate-200 transition-colors"
+            >
+                <PanelLeftClose size={18} />
+            </button>
+        )}
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 custom-scrollbar overflow-x-hidden">
-        <button
-          onClick={() => onSelect(ToolType.DASHBOARD)}
-          className={`w-full flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 mb-6 group whitespace-nowrap
-            ${activeTool === ToolType.DASHBOARD
-              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/20' 
-              : 'hover:bg-slate-800 hover:text-white'
-            }
-            ${isCollapsed ? 'justify-center' : 'gap-3'}
-          `}
-          title={isCollapsed ? "Dashboard" : ""}
-        >
-          <LayoutDashboard className={`flex-shrink-0 ${activeTool === ToolType.DASHBOARD ? 'text-white' : 'text-slate-400 group-hover:text-white'} ${isCollapsed ? 'w-6 h-6' : 'w-5 h-5'}`} />
-          {!isCollapsed && <span className="font-semibold text-sm">Dashboard</span>}
-        </button>
+      {/* 2. Navigation Area */}
+      <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-6 custom-scrollbar scroll-smooth">
+        
+        {/* Dashboard Link (Always Top) */}
+        <div>
+            <button
+              onClick={() => onSelect(ToolType.DASHBOARD)}
+              className={`
+                group w-full flex items-center px-3 py-2.5 rounded-xl transition-all duration-200 mb-1 relative
+                ${activeTool === ToolType.DASHBOARD 
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/20' 
+                  : 'hover:bg-slate-800/50 hover:text-slate-200 text-slate-400'
+                }
+                ${isCollapsed ? 'justify-center' : ''}
+              `}
+              title="Dashboard"
+            >
+              <LayoutDashboard size={20} className={`flex-shrink-0 ${activeTool === ToolType.DASHBOARD ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`} />
+              {!isCollapsed && <span className="ml-3 font-semibold text-sm">Tổng quan</span>}
+              
+              {/* Tooltip for collapsed */}
+              {isCollapsed && (
+                  <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-xl border border-slate-700">
+                      Tổng quan
+                  </div>
+              )}
+            </button>
+        </div>
 
-        {filteredGroups.map((group) => {
-          const GroupIcon = getGroupIcon(group.title);
+        {/* Dynamic Groups */}
+        {filteredGroups.map((group, groupIdx) => {
           const isExpanded = expandedGroups.includes(group.title);
           
           return (
-            <div key={group.title} className="mb-4">
-              <button
-                onClick={() => toggleGroup(group.title)}
-                className={`w-full flex items-center py-2 text-[11px] font-bold text-slate-500 uppercase tracking-wider hover:text-slate-300 transition-colors mb-1 whitespace-nowrap
-                    ${isCollapsed ? 'justify-center px-0' : 'justify-between px-3'}
-                `}
-                title={isCollapsed ? group.title : ""}
-              >
-                <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-2'}`}>
-                   <GroupIcon size={isCollapsed ? 18 : 14} className={isCollapsed ? "text-slate-400" : ""} />
-                   {!isCollapsed && <span>{group.title}</span>}
-                </div>
-                {!isCollapsed && (isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />)}
-              </button>
+            <div key={group.title} className="relative">
+              {/* Group Header (Only visible if not collapsed or just a separator) */}
+              {!isCollapsed ? (
+                  <button
+                    onClick={() => toggleGroup(group.title)}
+                    className="w-full flex items-center justify-between px-3 py-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider hover:text-slate-300 transition-colors group mb-1"
+                  >
+                    <span>{group.title}</span>
+                    <span className="text-slate-600 group-hover:text-slate-400 transition-colors">
+                        {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </span>
+                  </button>
+              ) : (
+                  // Separator for collapsed mode
+                  <div className="w-8 h-px bg-slate-800 mx-auto mb-3 mt-1"></div>
+              )}
               
-              <div className={`space-y-0.5 overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+              {/* Group Items */}
+              <div className={`space-y-1 overflow-hidden transition-all duration-300 ease-in-out ${!isCollapsed && isExpanded ? 'max-h-[1000px] opacity-100' : (!isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100')}`}>
                 {group.items.map((item) => {
                   const Icon = item.icon;
                   const isActive = activeTool === item.id;
+                  
                   return (
                     <button
                       key={item.id}
                       onClick={() => onSelect(item.id)}
-                      className={`w-full flex items-center px-3 py-2 rounded-md transition-all duration-200 relative group whitespace-nowrap
+                      className={`
+                        group w-full flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 relative
                         ${isActive 
-                          ? 'bg-slate-800 text-white font-medium' 
-                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                          ? 'bg-slate-800 text-white font-medium shadow-sm' 
+                          : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/40'
                         }
-                        ${isCollapsed ? 'justify-center' : 'gap-3'}
+                        ${isCollapsed ? 'justify-center' : ''}
                       `}
-                      title={isCollapsed ? item.label : ""}
                     >
+                      {/* Active Indicator Strip */}
                       {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-indigo-500 rounded-r-full"></div>}
-                      <Icon className={`transition-colors flex-shrink-0 ${isActive ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'} ${isCollapsed ? 'w-5 h-5' : 'w-4 h-4'}`} />
-                      {!isCollapsed && <span className="text-sm truncate">{item.label}</span>}
+                      
+                      <Icon size={20} strokeWidth={isActive ? 2.5 : 2} className={`flex-shrink-0 transition-colors ${isActive ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
+                      
+                      {!isCollapsed && <span className="ml-3 text-sm truncate">{item.label}</span>}
+
+                      {/* Tooltip for Collapsed Mode */}
+                      {isCollapsed && (
+                          <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-2 bg-slate-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-xl border border-slate-700 min-w-max">
+                              <div className="font-bold mb-0.5">{item.label}</div>
+                              <div className="text-slate-400 text-[10px]">{item.description}</div>
+                          </div>
+                      )}
                     </button>
                   );
                 })}
@@ -243,25 +268,54 @@ const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
-      {/* Footer Status */}
-      <div className={`p-4 border-t border-slate-800 bg-[#0f172a] transition-all ${isCollapsed ? 'items-center justify-center' : ''}`}>
-          <div className={`flex items-center gap-2 text-xs font-medium mb-2 ${isCollapsed ? 'justify-center' : ''} ${hasApiKey ? 'text-emerald-400' : 'text-amber-500'}`}>
-              {hasApiKey ? <Wifi size={14} /> : <WifiOff size={14} />}
-              {!isCollapsed && (
-                  <span>{hasApiKey ? 'AI Connected' : 'Offline Mode'}</span>
-              )}
-          </div>
-          
+      {/* 3. Footer Section (Collapsed Toggle + API Status) */}
+      <div className="p-4 border-t border-slate-800 bg-[#0f172a]">
+          {/* Status Indicator */}
+          {!isCollapsed ? (
+              <div className={`
+                  flex items-center justify-between px-3 py-2.5 rounded-lg mb-2 border transition-colors
+                  ${hasApiKey 
+                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                      : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                  }
+              `}>
+                  <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${hasApiKey ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></div>
+                      <span className="text-xs font-bold">{hasApiKey ? 'AI Connected' : 'Offline Mode'}</span>
+                  </div>
+              </div>
+          ) : (
+              // Collapsed Status Dot
+              <div className="flex justify-center mb-4">
+                  <div className={`w-3 h-3 rounded-full border-2 border-[#0f172a] ${hasApiKey ? 'bg-emerald-500' : 'bg-amber-500'}`} title={hasApiKey ? 'AI Connected' : 'Offline Mode'}></div>
+              </div>
+          )}
+
+          {/* Config Button */}
           <button 
             onClick={onOpenKeyModal}
-            className={`w-full flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-lg transition-colors text-xs font-bold ${isCollapsed ? 'justify-center' : ''}`}
+            className={`
+                w-full flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group
+                ${hasApiKey ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-900/20'}
+                ${isCollapsed ? 'justify-center' : 'gap-3'}
+            `}
             title="Cấu hình API Key"
           >
-             <Settings size={14} />
-             {!isCollapsed && "Cấu hình API"}
+             <Settings size={20} className={!hasApiKey && !isCollapsed ? 'animate-spin-slow' : ''} />
+             {!isCollapsed && <span className="font-semibold text-sm">Cài đặt API</span>}
           </button>
+
+          {/* Expand Button (Mobile Only or Collapsed State Helper) */}
+          {isCollapsed && (
+              <button 
+                  onClick={toggleCollapse}
+                  className="mt-4 w-full flex items-center justify-center p-2 text-slate-500 hover:text-white transition-colors"
+              >
+                  <PanelLeftOpen size={20} />
+              </button>
+          )}
       </div>
-    </div>
+    </aside>
   );
 };
 
