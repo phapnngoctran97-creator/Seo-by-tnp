@@ -435,7 +435,8 @@ const App: React.FC = () => {
           setHistory(prev => [newItem, ...prev]);
       }
     } catch (error) {
-      alert("Lỗi dịch thuật. Vui lòng kiểm tra mạng hoặc API Key trong Cài Đặt.");
+      // alert("Lỗi dịch thuật..."); // Removed generic alert in favor of inline error
+      console.error(error);
     } finally {
       setIsLoadingTranslate(false);
     }
