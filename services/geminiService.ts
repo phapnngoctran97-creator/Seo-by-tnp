@@ -1,478 +1,477 @@
-import { GoogleGenAI, Type, Modality, HarmCategory, HarmBlockThreshold } from "@google/genai";
-import { TranslationResponse, GeneratedStory, GrammarPoint, WordSuggestion, QuizQuestion, LearningMethods } from "../types";
 
-const getAIClient = () => {
-  // Strictly require API Key from Dashboard (Settings)
-  // Trim the key to avoid copy-paste errors
-  const apiKey = localStorage.getItem('VOCA_CUSTOM_API_KEY')?.trim();
+import { GoogleGenAI, Type } from "@google/genai";
+
+const getAiClient = () => {
+  // Ưu tiên lấy từ biến môi trường (nếu deploy), nếu không thì lấy từ localStorage (nếu chạy local/demo)
+  const apiKey = process.env.API_KEY || localStorage.getItem('gemini_api_key');
 
   if (!apiKey) {
-    throw new Error("API Key not found. Please enter your Google Gemini API Key in the Settings menu.");
+    console.error("API Key is missing");
+    throw new Error("Hệ thống chưa được cấu hình API Key. Vui lòng nhập Key trong cài đặt.");
   }
-  return new GoogleGenAI({ apiKey: apiKey });
+  
+  return new GoogleGenAI({ apiKey });
 };
 
-// Common safety settings to prevent blocking of educational content
-const safetySettings = [
-  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-];
-
-// Helper to clean Markdown code blocks from JSON string and find JSON objects/arrays
-const cleanJsonResponse = (text: string): string => {
-  if (!text) return "{}";
+export const generateMetaDescriptions = async (
+  topic: string,
+  keywords: string,
+  tone: string
+): Promise<Array<{ title: string; description: string }>> => {
+  const ai = getAiClient();
   
-  // Remove markdown code blocks if present
-  let clean = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-  
-  // Attempt to find the outermost JSON object or array
-  const firstBrace = clean.indexOf('{');
-  const lastBrace = clean.lastIndexOf('}');
-  const firstBracket = clean.indexOf('[');
-  const lastBracket = clean.lastIndexOf(']');
+  const prompt = `
+    Bạn là một chuyên gia SEO hàng đầu. Hãy tạo ra 3 cặp Thẻ Tiêu Đề (Title Tag) và Meta Description tối ưu SEO cho chủ đề sau:
+    Chủ đề/Nội dung chính: "${topic}"
+    Từ khóa cần SEO: "${keywords}"
+    Giọng văn: "${tone}"
 
-  // Determine if it looks like an Object or an Array
-  // We prioritize whichever comes first and has a matching pair
-  let isObject = false;
-  let isArray = false;
+    Yêu cầu:
+    - Tiêu đề dưới 60 ký tự.
+    - Meta Description dưới 160 ký tự.
+    - Hấp dẫn, kích thích tỷ lệ click (CTR).
+    - Trả về kết quả dưới dạng JSON thuần túy.
+  `;
 
-  if (firstBrace !== -1 && lastBrace !== -1) isObject = true;
-  if (firstBracket !== -1 && lastBracket !== -1) isArray = true;
-
-  if (isObject && isArray) {
-    // If both exist, take the one that starts earlier
-    if (firstBracket < firstBrace) {
-       clean = clean.substring(firstBracket, lastBracket + 1);
-    } else {
-       clean = clean.substring(firstBrace, lastBrace + 1);
-    }
-  } else if (isObject) {
-    clean = clean.substring(firstBrace, lastBrace + 1);
-  } else if (isArray) {
-    clean = clean.substring(firstBracket, lastBracket + 1);
-  }
-
-  return clean;
-};
-
-export const translateText = async (text: string, direction: 'vi_en' | 'en_vi' = 'vi_en'): Promise<TranslationResponse> => {
   try {
-    const ai = getAIClient();
-    
-    let promptInstructions = "";
-    
-    if (direction === 'vi_en') {
-      promptInstructions = `
-        Translate the following Vietnamese text to English.
-        Vietnamese: "${text}"
-        
-        Return JSON with:
-        1. "english": The English translation.
-        2. "phonetic": The IPA transcription of the English translation.
-      `;
-    } else {
-      promptInstructions = `
-        Translate the following English text to Vietnamese.
-        English: "${text}"
-        
-        Return JSON with:
-        1. "english": The Vietnamese translation (Put the Vietnamese result here).
-        2. "phonetic": The IPA transcription of the INPUT English text.
-      `;
-    }
-
-    const prompt = `
-      ${promptInstructions}
-      3. "partOfSpeech": The grammatical category (e.g., Noun, Verb).
-      4. "usageHint": A brief tip, collocation, or very short example of how to use the English word/phrase naturally.
-      5. "tenses": If the word is a VERB, provide an object with "past" (Simple Past), "present" (Simple Present 3rd person/Base), and "future" (Simple Future). If not a verb or not applicable, return empty strings for these fields.
-      6. "emoji": A single relevant emoji or a set of emojis representing the word/meaning to act as an icon/illustration. If abstract, use a symbolic emoji.
-      
-      Response JSON Schema:
-      {
-        "english": "string",
-        "phonetic": "string",
-        "partOfSpeech": "string",
-        "usageHint": "string",
-        "emoji": "string",
-        "tenses": {
-           "past": "string",
-           "present": "string",
-           "future": "string"
-        }
-      }
-    `;
-
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        safetySettings: safetySettings,
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            english: { type: Type.STRING },
-            phonetic: { type: Type.STRING },
-            partOfSpeech: { type: Type.STRING },
-            usageHint: { type: Type.STRING },
-            emoji: { type: Type.STRING },
-            tenses: {
-              type: Type.OBJECT,
-              properties: {
-                past: { type: Type.STRING },
-                present: { type: Type.STRING },
-                future: { type: Type.STRING },
-              }
-            }
-          },
-        },
-      }
-    });
-
-    if (!response || !response.text) {
-        throw new Error("Empty response from AI (Content Blocked?)");
-    }
-
-    const cleanText = cleanJsonResponse(response.text);
-    return JSON.parse(cleanText) as TranslationResponse;
-  } catch (error: any) {
-    console.error("Gemini Translation Error:", error);
-    
-    // Extract precise error message
-    let msg = error?.message || String(error);
-    
-    // Friendly error mapping for user
-    if (msg.includes("400") || msg.includes("API key")) {
-        msg = "Invalid API Key. Please check your settings.";
-    } else if (msg.includes("429") || msg.includes("quota")) {
-        msg = "Quota Exceeded. Please try again later.";
-    } else if (msg.includes("fetch failed") || msg.includes("Network")) {
-        msg = "Network Error. Please check internet connection.";
-    } else if (msg.includes("503") || msg.includes("Overloaded")) {
-        msg = "AI Server Busy. Please try again.";
-    }
-
-    return { 
-      english: `Error: ${msg}`, 
-      phonetic: "",
-      partOfSpeech: "System", 
-      usageHint: "Check the error message above."
-    };
-  }
-};
-
-export const getWordSuggestions = async (text: string, direction: 'vi_en' | 'en_vi'): Promise<WordSuggestion[]> => {
-  try {
-    const ai = getAIClient();
-    const lang = direction === 'vi_en' ? 'Vietnamese' : 'English';
-    const targetLang = direction === 'vi_en' ? 'English' : 'Vietnamese';
-
-    if (text.length > 40) return [];
-
-    const prompt = `
-      The user is typing a word in ${lang}: "${text}".
-      Suggest up to 5 relevant completions or related words.
-      For each suggestion, provide the word, its part of speech, and a short meaning in ${targetLang}.
-      
-      Response format: JSON Array.
-    `;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        safetySettings: safetySettings,
         responseSchema: {
           type: Type.ARRAY,
           items: {
             type: Type.OBJECT,
             properties: {
-              word: { type: Type.STRING },
-              type: { type: Type.STRING },
-              meaning: { type: Type.STRING }
-            }
+              title: { type: Type.STRING },
+              description: { type: Type.STRING }
+            },
+            required: ["title", "description"]
           }
         }
       }
     });
 
-    const cleanText = cleanJsonResponse(response.text || "[]");
-    return JSON.parse(cleanText);
+    const text = response.text;
+    if (!text) return [];
+    return JSON.parse(text);
   } catch (error) {
-    console.warn("Suggestion Error", error);
-    return [];
+    console.error("Gemini Meta Gen Error:", error);
+    throw error;
   }
 };
 
-export const generateStoryFromWords = async (words: string[], theme: string = '', type: 'story' | 'dialogue' = 'story'): Promise<{ english: string, vietnamese: string, grammarPoints: GrammarPoint[], learningMethods?: LearningMethods }> => {
-  const ai = getAIClient();
-  const wordListStr = words.join(', ');
-  
-  // ATTEMPT 1: Structured JSON Generation
+export const analyzeSpeedOptimization = async (
+  urlOrStack: string
+): Promise<string> => {
+  const ai = getAiClient();
+
+  const prompt = `
+    Tôi là chủ sở hữu website và tôi cần cải thiện tốc độ trang web (Core Web Vitals).
+    Thông tin website hoặc công nghệ đang dùng: "${urlOrStack}"
+    
+    Hãy đóng vai một kỹ sư hiệu năng web (Web Performance Engineer).
+    Vui lòng cung cấp một danh sách kiểm tra (Checklist) chi tiết và các chiến lược cụ thể để tối ưu hóa tốc độ cho trường hợp này.
+    Tập trung vào:
+    1. LCP (Largest Contentful Paint)
+    2. FID (First Input Delay) / INP
+    3. CLS (Cumulative Layout Shift)
+    
+    Hãy trình bày dưới dạng Markdown dễ đọc, sử dụng các gạch đầu dòng và tiêu đề rõ ràng. Tiếng Việt.
+  `;
+
   try {
-    const typeInstruction = type === 'dialogue' 
-      ? `Create a dialogue between two named characters. Format: "Name: Content". Use newlines.` 
-      : `Create a short story (150 words).`;
-
-    const prompt = `
-      ${typeInstruction}
-      Theme: "${theme}".
-      Vocab to use: ${wordListStr}.
-      
-      Requirements:
-      1. Wrap vocabulary words in <b> tags.
-      2. Use mixed tenses (Present, Past, Perfect).
-      3. Analyze 2 grammar points.
-      4. Provide 'learningMethods' in VIETNAMESE language to help the user learn these specific words and this story:
-         - memorization: List 2 specific mnemonic or imagery tips to remember the vocabulary.
-         - speaking: List 2 specific roleplay ideas or questions to practice speaking based on this story context.
-      
-      Return JSON with english, vietnamese, grammarPoints, and learningMethods.
-    `;
-
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+    return response.text || "Không thể tạo nội dung tư vấn lúc này.";
+  } catch (error) {
+    console.error("Gemini Speed Analysis Error:", error);
+    throw error;
+  }
+};
+
+export const checkPlagiarismAndStyle = async (
+  text: string
+): Promise<string> => {
+  const ai = getAiClient();
+
+  const prompt = `
+    Hãy phân tích đoạn văn bản sau đây về mặt "Tính nguyên bản" và "Văn phong".
+    Văn bản: "${text}"
+    
+    Nhiệm vụ:
+    1. Đánh giá xem văn bản này có dấu hiệu giống văn bản do AI tạo ra hay văn bản sao chép thông thường không (dựa trên cấu trúc câu, từ ngữ lặp lại).
+    2. Đề xuất các thay đổi để làm cho văn bản tự nhiên hơn, giống người viết hơn.
+    3. Tìm ra 3 câu có thể viết lại để hay hơn.
+    
+    Trình bày dưới dạng Markdown ngắn gọn. Lưu ý: Bạn không thể tìm kiếm Google thời gian thực, nên hãy phân tích dựa trên kiến thức ngôn ngữ học và mô hình của bạn.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+    return response.text || "Không thể phân tích lúc này.";
+  } catch (error) {
+    console.error("Gemini Plagiarism Check Error:", error);
+    throw error;
+  }
+};
+
+export const generateSeoOutline = async (
+  topic: string,
+  mainKeyword: string,
+  secondaryKeywords: string
+): Promise<string> => {
+  const ai = getAiClient();
+
+  const prompt = `
+    Bạn là một chuyên gia Content SEO với 10 năm kinh nghiệm. Hãy lập một Dàn ý bài viết (Article Outline) chi tiết và tối ưu cho chủ đề sau:
+    
+    - Chủ đề: "${topic}"
+    - Từ khóa chính (Main Keyword): "${mainKeyword}"
+    - Từ khóa phụ/liên quan (Secondary Keywords): "${secondaryKeywords}"
+
+    Hãy trình bày kết quả dưới dạng Markdown chuyên nghiệp theo cấu trúc sau:
+
+    ### 1. Phân Tích & Chiến Lược Từ Khóa
+    - **Intent (Ý định tìm kiếm):** Người dùng muốn gì khi tìm từ khóa này?
+    - **Danh sách từ khóa LSI/Semantic:** Gợi ý thêm 5-10 từ khóa liên quan nên chèn vào bài để tăng độ phủ.
+    - **Độ dài bài viết đề xuất:** ... từ.
+
+    ### 2. Dàn Ý Chi Tiết (Outline)
+    (Sử dụng cấu trúc H1, H2, H3 rõ ràng. Với mỗi thẻ H2/H3, hãy gạch đầu dòng ngắn gọn nội dung cần viết là gì)
+
+    **H1: [Gợi ý 1 tiêu đề hấp dẫn chứa từ khóa chính]**
+    
+    **H2: Giới thiệu (Introduction)**
+    - ...
+
+    **H2: [Luận điểm chính 1]**
+    - ...
+    
+    (Tiếp tục các luận điểm...)
+
+    **H2: Kết luận (Conclusion)**
+    - ...
+    
+    ### 3. Checklist SEO On-page
+    - Gợi ý vị trí đặt từ khóa chính.
+    - Gợi ý về Internal Link nên có.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+    return response.text || "Không thể tạo dàn ý lúc này.";
+  } catch (error) {
+    console.error("Gemini Outline Gen Error:", error);
+    throw error;
+  }
+};
+
+export interface SeoScoreResult {
+  score: number;
+  goodPoints: string[];
+  warnings: string[];
+  criticalErrors: string[];
+  suggestions: string[];
+}
+
+export const gradeSeoContent = async (
+  htmlContent: string,
+  keyword: string,
+  url?: string
+): Promise<SeoScoreResult> => {
+  const ai = getAiClient();
+
+  // Strip large base64 images to save tokens, but keep img tags for analysis
+  const cleanedContent = htmlContent.replace(/<img[^>]*src="data:image\/[^;]+;base64,[^"]+"[^>]*>/g, '[IMAGE_PLACEHOLDER]');
+  
+  const prompt = `
+    Bạn là một công cụ chấm điểm SEO Content nghiêm ngặt giống như Rank Math hoặc Yoast SEO.
+    
+    Nhiệm vụ: Chấm điểm bài viết dưới đây dựa trên Từ Khóa Tập Trung (Focus Keyword).
+    
+    Thông tin đầu vào:
+    - Từ khóa tập trung: "${keyword}"
+    - URL (nếu có): "${url || 'Không có'}"
+    - Nội dung bài viết (HTML thô): 
+    """
+    ${cleanedContent.substring(0, 15000)} 
+    """
+    (Lưu ý: Nội dung đã được cắt ngắn nếu quá dài, hãy phân tích dựa trên những gì nhận được).
+
+    Hãy phân tích các tiêu chí sau:
+    1. Từ khóa trong thẻ H1, H2, H3?
+    2. Mật độ từ khóa (Keyword Density) có tự nhiên không (0.5% - 2.5%)?
+    3. Độ dài bài viết?
+    4. Có hình ảnh không? (Placeholder [IMAGE_PLACEHOLDER] tính là có ảnh).
+    5. Khả năng đọc (câu ngắn, chia đoạn).
+    6. Từ khóa ở đầu bài viết?
+
+    Trả về kết quả dưới dạng JSON theo schema sau:
+    {
+      "score": number (0-100),
+      "goodPoints": ["string"],
+      "warnings": ["string"],
+      "criticalErrors": ["string"],
+      "suggestions": ["string"]
+    }
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        safetySettings: safetySettings,
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            english: { type: Type.STRING },
-            vietnamese: { type: Type.STRING },
-            grammarPoints: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  structure: { type: Type.STRING },
-                  explanation: { type: Type.STRING },
-                  exampleInStory: { type: Type.STRING },
-                  memoryTip: { type: Type.STRING },
-                }
-              }
-            },
-            learningMethods: {
-              type: Type.OBJECT,
-              properties: {
-                memorization: { type: Type.ARRAY, items: { type: Type.STRING } },
-                speaking: { type: Type.ARRAY, items: { type: Type.STRING } }
-              }
-            }
+            score: { type: Type.INTEGER },
+            goodPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
+            warnings: { type: Type.ARRAY, items: { type: Type.STRING } },
+            criticalErrors: { type: Type.ARRAY, items: { type: Type.STRING } },
+            suggestions: { type: Type.ARRAY, items: { type: Type.STRING } }
           },
-        },
-      }
-    });
-
-    const cleanText = cleanJsonResponse(response.text || "");
-    return JSON.parse(cleanText);
-  } catch (error) {
-    console.warn("JSON Story Generation failed, falling back to simple text...", error);
-    
-    // ATTEMPT 2: Fallback to Simple Text (If JSON fails)
-    try {
-        const fallbackPrompt = `
-           Write a short English story (or dialogue) using these words: ${wordListStr}.
-           Theme: ${theme}.
-           Then provide a Vietnamese translation below it separated by "---".
-           Highlight the words using <b> tags.
-        `;
-        const fallbackRes = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: fallbackPrompt,
-            config: { safetySettings: safetySettings }
-        });
-        
-        const fullText = fallbackRes.text || "";
-        const parts = fullText.split('---');
-        
-        return {
-            english: parts[0]?.trim() || fullText,
-            vietnamese: parts[1]?.trim() || "Bản dịch đang cập nhật...",
-            grammarPoints: [] // No grammar points in fallback mode
-        };
-    } catch (fallbackError) {
-        throw new Error("Could not generate content.");
-    }
-  }
-};
-
-export const lookupWord = async (text: string, context: string): Promise<{ phonetic: string, type: string, meaning: string, example: string, emoji?: string }> => {
-  try {
-    const ai = getAIClient();
-    
-    const isSentence = text.trim().split(/\s+/).length > 3;
-    
-    let prompt = "";
-    if (isSentence) {
-        prompt = `
-          Translate and explain this English sentence/phrase to Vietnamese: "${text}".
-          Context: "${context.substring(0, 100)}...".
-          
-          Return JSON:
-          - phonetic: (Leave empty or simplified pronunciation guide if applicable)
-          - type: "Sentence" or "Phrase"
-          - meaning: The Vietnamese translation.
-          - example: A grammatical note or key vocabulary from the sentence.
-        `;
-        // NO Emoji for sentences
-         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                safetySettings: safetySettings,
-                responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    phonetic: { type: Type.STRING },
-                    type: { type: Type.STRING },
-                    meaning: { type: Type.STRING },
-                    example: { type: Type.STRING },
-                },
-                },
-            }
-        });
-        const cleanText = cleanJsonResponse(response.text || "{}");
-        return JSON.parse(cleanText);
-
-    } else {
-        prompt = `
-          Define the word "${text}" in Vietnamese based on context: "${context.substring(0, 100)}...".
-          Return JSON: phonetic, type, meaning, example (English), and a relevant emoji.
-        `;
-        // Include Emoji for single words
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                safetySettings: safetySettings,
-                responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                    phonetic: { type: Type.STRING },
-                    type: { type: Type.STRING },
-                    meaning: { type: Type.STRING },
-                    example: { type: Type.STRING },
-                    emoji: { type: Type.STRING },
-                },
-                },
-            }
-        });
-        const cleanText = cleanJsonResponse(response.text || "{}");
-        return JSON.parse(cleanText);
-    }
-
-  } catch (error) {
-    return { phonetic: "", type: "", meaning: "Lỗi tra cứu", example: "" };
-  }
-};
-
-export const generateSpeech = async (text: string, voice: string = 'Kore', isDialogue: boolean = false): Promise<string | undefined> => {
-  const ai = getAIClient();
-  const cleanText = text.replace(/<\/?[^>]+(>|$)/g, "").replace(/\*/g, "").trim();
-  if(!cleanText) return undefined;
-
-  // Use Try/Catch to handle Quota Exceeded or API Errors
-  try {
-    // 1. Try Multi-speaker if dialogue
-    if (isDialogue) {
-      const speakerRegex = /^\s*([^\:\n]+)\s*:/gm;
-      const matches = [...cleanText.matchAll(speakerRegex)];
-      const uniqueSpeakers = [...new Set(matches.map(m => m[1].trim()))];
-
-      if (uniqueSpeakers.length >= 2) {
-        const primary = uniqueSpeakers[0];
-        const secondary = uniqueSpeakers[1];
-        const voice2 = ['Fenrir', 'Puck', 'Charon'].includes(voice) ? 'Kore' : 'Fenrir';
-
-        const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash-preview-tts",
-          contents: [{ parts: [{ text: cleanText }] }],
-          config: {
-            responseModalities: [Modality.AUDIO],
-            safetySettings: safetySettings,
-            speechConfig: {
-              multiSpeakerVoiceConfig: {
-                speakerVoiceConfigs: [
-                  { speaker: primary, voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } },
-                  { speaker: secondary, voiceConfig: { prebuiltVoiceConfig: { voiceName: voice2 } } }
-                ]
-              }
-            },
-          },
-        });
-        const audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-        if (audio) return audio;
-      }
-    }
-
-    // 2. Standard Single Speaker
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: cleanText }] }],
-      config: {
-        responseModalities: [Modality.AUDIO],
-        safetySettings: safetySettings,
-        speechConfig: {
-          voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
-        },
-      },
-    });
-
-    return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-  } catch (error) {
-    // If API fails (Quota, Network, etc.), return undefined to trigger App.tsx fallback
-    return undefined; 
-  }
-};
-
-export const generateQuizFromWords = async (words: string[]): Promise<QuizQuestion[]> => {
-  try {
-    const ai = getAIClient();
-    const wordListStr = words.join(', ');
-    
-    const prompt = `
-      Create 10 multiple-choice questions to test the user's understanding of these words: ${wordListStr}.
-      Questions can be: "What does X mean?", "Fill in the blank", or "Find the synonym".
-      Provide 4 options (A, B, C, D) and identify the correct one.
-      IMPORTANT: The "correctAnswer" field MUST contain the EXACT string value of one of the options in the "options" array, not just the letter (A/B/C/D).
-      
-      Return JSON Array of objects.
-    `;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        safetySettings: safetySettings,
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              id: { type: Type.NUMBER },
-              question: { type: Type.STRING },
-              options: { type: Type.ARRAY, items: { type: Type.STRING } },
-              correctAnswer: { type: Type.STRING },
-              explanation: { type: Type.STRING }
-            }
-          }
+          required: ["score", "goodPoints", "warnings", "criticalErrors", "suggestions"]
         }
       }
     });
 
-    const cleanText = cleanJsonResponse(response.text || "[]");
-    return JSON.parse(cleanText);
+    const text = response.text;
+    if (!text) throw new Error("Empty response");
+    return JSON.parse(text);
   } catch (error) {
-    console.error("Quiz Generation Error", error);
-    throw new Error("Could not generate quiz.");
+    console.error("Gemini SEO Grader Error:", error);
+    throw error;
+  }
+};
+
+// --- ADS TOOLS ---
+
+export const generateAdsStructure = async (
+  product: string,
+  platform: 'Facebook' | 'Google',
+  goal: string
+): Promise<string> => {
+  const ai = getAiClient();
+  const prompt = `
+    Bạn là chuyên gia quảng cáo ${platform} Ads (Media Buyer). Hãy thiết lập một cấu trúc chiến dịch (Campaign Structure) tối ưu cho:
+    - Sản phẩm: "${product}"
+    - Mục tiêu: "${goal}"
+
+    Hãy trình bày dưới dạng cây thư mục Markdown chi tiết như sau:
+    
+    **Campaign:** [Tên chiến dịch - Mục tiêu]
+    
+    **Ad Set 1: [Nhóm đối tượng A - Ví dụ: Cold Traffic/Interests]**
+    - Target: Độ tuổi, Vị trí, Sở thích cụ thể...
+    - Ngân sách đề xuất (tỷ lệ %).
+      - **Ad 1 (Format: Video/Image):** Angle (Góc độ tiếp cận)...
+      - **Ad 2:** ...
+    
+    **Ad Set 2: [Nhóm đối tượng B - Ví dụ: Lookalike/Retargeting]**
+    ...
+
+    Lưu ý: Giải thích ngắn gọn tại sao lại chia như vậy ở cuối.
+  `;
+  
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt
+  });
+  return response.text || "Lỗi tạo cấu trúc.";
+};
+
+export const generateAdsContent = async (
+  product: string,
+  audience: string,
+  angle: string
+): Promise<string> => {
+  const ai = getAiClient();
+  const prompt = `
+    Viết nội dung quảng cáo Facebook/Google Ads cho:
+    - Sản phẩm: "${product}"
+    - Đối tượng khách hàng: "${audience}"
+    - Góc độ (Angle/Pain point): "${angle}"
+
+    Hãy tạo ra 3 phiên bản nội dung quảng cáo khác nhau. 
+    Với mỗi phiên bản, hãy cung cấp đầy đủ:
+    1. Primary Text (Nội dung chính - Có icon hấp dẫn).
+    2. Headline (Tiêu đề - Ngắn gọn, giật tít).
+    3. Description (Mô tả phụ cho link).
+    4. Call to Action (Nút kêu gọi).
+    
+    Trình bày dạng Markdown.
+  `;
+  
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt
+  });
+  return response.text || "Lỗi tạo nội dung.";
+};
+
+export const generateLandingLayout = async (
+  product: string,
+  industry: string
+): Promise<string> => {
+  const ai = getAiClient();
+  const prompt = `
+    Bạn là một Senior Frontend Developer và UI/UX Designer.
+    Hãy viết một trang Landing Page (Sales Page) hoàn chỉnh bằng HTML5 và Tailwind CSS cho:
+    - Sản phẩm: "${product}"
+    - Ngành hàng: "${industry}"
+
+    Yêu cầu kỹ thuật:
+    1. Chỉ trả về mã HTML (không có Markdown backticks, không giải thích).
+    2. Bao gồm link CDN Tailwind CSS trong thẻ <head>: <script src="https://cdn.tailwindcss.com"></script>
+    3. Font chữ: Sử dụng font 'Inter' từ Google Fonts.
+    4. Cấu trúc AIDA:
+       - Header (Logo, Nav, CTA).
+       - Hero Section (Headline mạnh mẽ, Subheadline, CTA Button, Ảnh minh họa placeholder).
+       - Problem Section (Nêu vấn đề khách hàng gặp phải).
+       - Solution/Benefits Section (Lợi ích sản phẩm, Grid 3 cột).
+       - Social Proof (Testimonials/Reviews).
+       - Pricing/Offer Section.
+       - FAQ.
+       - Footer.
+    5. Hình ảnh: Sử dụng ảnh placeholder từ source.unsplash.com hoặc placehold.co với keyword liên quan đến "${industry}".
+    6. Thiết kế: Hiện đại, bo tròn (rounded-xl), đổ bóng (shadow-lg), gradient background cho Hero section.
+
+    Output format: Raw HTML code string starting with <!DOCTYPE html>.
+  `;
+  
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt
+  });
+  
+  // Clean up if AI returns markdown wrapper
+  let code = response.text || "";
+  code = code.replace(/```html/g, "").replace(/```/g, "").trim();
+  
+  return code || "Lỗi tạo layout.";
+};
+
+export const generateMarketingPlanSlides = async (
+  brandName: string,
+  period: string,
+  history: string,
+  goals: string,
+  fileData?: { mimeType: string; data: string } | null
+): Promise<string> => {
+  const ai = getAiClient();
+  
+  let promptText = `
+    Bạn là một Giám đốc Marketing (CMO) chuyên nghiệp. Hãy tạo một bài thuyết trình (Slide Deck) kế hoạch Marketing bằng HTML/CSS/JS (Single file).
+    
+    Thông tin đầu vào:
+    - Thương hiệu: "${brandName}"
+    - Giai đoạn lập kế hoạch: "${period}"
+    - Lịch sử/Số liệu quá khứ (User input): "${history}"
+    - Mục tiêu & Đề xuất: "${goals}"
+  `;
+
+  if (fileData) {
+    promptText += `
+    \nQUAN TRỌNG: Người dùng ĐÃ ĐÍNH KÈM một hình ảnh báo cáo (ví dụ: Dashboard quảng cáo, file Excel, hoặc biểu đồ số liệu).
+    Hãy PHÂN TÍCH HÌNH NÀY thật kỹ. Trích xuất tất cả các con số quan trọng (Doanh thu, Chi phí, CPC, CTR, ROAS, Leads, v.v.) và SỬ DỤNG CHÚNG để điền vào phần "Review Lịch sử & Số liệu" trong Slide.
+    Hãy so sánh số liệu từ hình ảnh với mục tiêu để đưa ra nhận xét sắc bén.
+    `;
+  }
+
+  promptText += `
+    Yêu cầu kỹ thuật:
+    1. Output là mã HTML5 đầy đủ, tích hợp Tailwind CSS qua CDN.
+    2. Giao diện giống PowerPoint/Google Slides: Tỷ lệ 16:9, căn giữa màn hình.
+    3. Có nút "Trước" (Prev) và "Sau" (Next) để chuyển slide. (Dùng JavaScript đơn giản nhúng trong thẻ <script>).
+    4. Cấu trúc các Slide (Hãy tự tin điền số liệu giả định hợp lý nếu thiếu, nhưng ưu tiên số liệu từ hình ảnh/input):
+       - Slide 1: Trang bìa (Tên brand, Tên kế hoạch, Tên người trình bày).
+       - Slide 2: Tổng quan (Executive Summary).
+       - Slide 3: Phân Tích Hiệu Quả (Data Driven) - Sử dụng số liệu trích xuất được.
+       - Slide 4: Phân tích SWOT.
+       - Slide 5: Mục tiêu chiến lược (KPIs).
+       - Slide 6: Chiến lược đề xuất (Key Initiatives).
+       - Slide 7: Lộ trình triển khai (Timeline).
+       - Slide 8: Dự trù ngân sách.
+       - Slide 9: Kết thúc (Q&A).
+    5. Thiết kế: Corporate, chuyên nghiệp, sử dụng màu chủ đạo là Xanh Navy (Blue-900) và Vàng (Yellow-500). Font Inter.
+
+    Output format: Raw HTML code only.
+  `;
+  
+  const parts: any[] = [{ text: promptText }];
+  if (fileData) {
+    parts.unshift({ inlineData: { mimeType: fileData.mimeType, data: fileData.data } });
+  }
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: { parts }
+  });
+  
+  let code = response.text || "";
+  code = code.replace(/```html/g, "").replace(/```/g, "").trim();
+  return code || "Lỗi tạo slide.";
+};
+
+export const analyzeChartData = async (
+  title: string,
+  type: string,
+  data: any[],
+  columnDescription: string
+): Promise<string> => {
+  const ai = getAiClient();
+  const dataStr = JSON.stringify(data);
+  
+  const prompt = `
+    Bạn là một Giám đốc Chiến lược (Chief Strategy Officer) và Chuyên gia Phân tích Dữ liệu.
+    
+    Nhiệm vụ: Phân tích sâu sắc dữ liệu biểu đồ sau để tìm ra "Insight" đắt giá nhất và đề xuất hành động.
+    
+    Thông tin biểu đồ:
+    - Tiêu đề: "${title}"
+    - Loại: ${type}
+    - Dữ liệu thô: ${dataStr}
+    - Mô tả các cột: ${columnDescription}
+
+    Hãy trình bày báo cáo phân tích theo cấu trúc chuyên nghiệp sau (dùng Markdown):
+
+    ### 1. 📊 Executive Summary (Tóm tắt quản trị)
+    - Nhận định ngắn gọn trong 1 câu về tình hình chung (Tốt/Xấu/Tiềm năng).
+    - Con số ấn tượng nhất (Key Metric).
+
+    ### 2. 🔍 Deep Dive Analysis (Phân tích sâu)
+    - **Xu hướng (Trend):** Tăng trưởng hay suy giảm? Có tính mùa vụ không?
+    - **Điểm nóng (Hotspots):** Tháng/Kênh nào cao nhất? Tại sao? (Đưa ra giả thuyết logic).
+    - **Điểm yếu (Pain points):** Đâu là chỗ đang lỗ hoặc kém hiệu quả?
+    - **Tương quan (Correlation):** Nếu có 2 trục dữ liệu (ví dụ Doanh thu vs Lợi nhuận), chúng có đi cùng chiều không?
+
+    ### 3. 🚀 Strategic Recommendations (Đề xuất chiến lược)
+    - **Ngắn hạn:** Cần làm gì ngay lập tức? (VD: Cắt giảm chi phí kênh X, đẩy mạnh kênh Y).
+    - **Dài hạn:** Cơ hội mở rộng hoặc tối ưu hóa quy trình.
+    - **Rủi ro:** Cảnh báo nếu xu hướng hiện tại tiếp tục.
+
+    Giọng văn: Chuyên nghiệp, sắc sảo, dựa trên số liệu (Data-driven), không nói chung chung.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+    return response.text || "Không thể phân tích dữ liệu.";
+  } catch (error) {
+    console.error("Gemini Chart Analysis Error:", error);
+    throw error;
   }
 };
